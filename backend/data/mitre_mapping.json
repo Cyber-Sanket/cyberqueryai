@@ -1,0 +1,88 @@
+{
+  "T1110": {
+    "id": "T1110",
+    "name": "Brute Force",
+    "tactics": ["Credential Access"],
+    "description": "Adversaries may use brute force techniques to gain access to accounts when passwords are unknown or when password hashes are unavailable.",
+    "subtechniques": ["T1110.001 Password Guessing", "T1110.003 Password Spraying"],
+    "detection_rules": [
+      "Repeated authentication failures (>5 attempts) from single IP/user within short window",
+      "Failed authentication attempts followed immediately by a successful authentication from same source"
+    ],
+    "recommendations": [
+      "Immediately isolate or block source IP address at perimeter firewall",
+      "Enforce mandatory password reset and Multi-Factor Authentication (MFA) re-verification for affected user",
+      "Check active sessions for user account across all internal resources",
+      "Review domain controller authentication logs for additional password spray indicators"
+    ]
+  },
+  "T1059.001": {
+    "id": "T1059.001",
+    "name": "Command and Scripting Interpreter: PowerShell",
+    "tactics": ["Execution"],
+    "description": "Adversaries may abuse PowerShell commands and scripts for execution, stealthy downloaders, and fileless execution.",
+    "subtechniques": ["T1059.001 PowerShell"],
+    "detection_rules": [
+      "PowerShell process spawned by unusual parent application (e.g., winword.exe, excel.exe, cmd.exe)",
+      "Encoded command line execution (-Enc, -EncodedCommand, Base64 strings)",
+      "In-memory execution primitives (DownloadString, IEX, Invoke-Expression)"
+    ],
+    "recommendations": [
+      "Isolate target endpoint from network immediately",
+      "Decode and inspect Base64 command-line payload for malicious C2 domains or script blocks",
+      "Inspect parent process tree and document history for macro/exploit execution",
+      "Enable PowerShell Script Block Logging (Event ID 4104) across domain endpoints"
+    ]
+  },
+  "T1046": {
+    "id": "T1046",
+    "name": "Network Service Discovery",
+    "tactics": ["Discovery"],
+    "description": "Adversaries may attempt to get a listing of services running on remote hosts to identify potential targets for lateral movement.",
+    "subtechniques": [],
+    "detection_rules": [
+      "Single source IP initiating connection attempts to >15 distinct destination ports within short time window",
+      "Sequential TCP SYN sweeps across internal IP subnets"
+    ],
+    "recommendations": [
+      "Identify target host performing scan and determine if host is compromised endpoint or authorized scanner",
+      "Review firewall and network access control lists (ACLs) to restrict internal subnet-to-subnet traffic",
+      "Check host for lateral movement tools (Nmap, Masscan, PortScan scripts)",
+      "Monitor internal network traffic for follow-on exploitation attempts on open ports"
+    ]
+  },
+  "T1071.004": {
+    "id": "T1071.004",
+    "name": "Application Layer Protocol: DNS",
+    "tactics": ["Command and Control", "Exfiltration"],
+    "description": "Adversaries may communicate using the Domain Name System (DNS) protocol to convey command and control (C2) data or exfiltrate sensitive files.",
+    "subtechniques": ["T1071.004 DNS Tunneling"],
+    "detection_rules": [
+      "High volume of DNS requests to non-standard, high-entropy or newly registered domains",
+      "Abnormally long DNS query domain lengths containing encoded subdomains"
+    ],
+    "recommendations": [
+      "Block target malicious domain at DNS resolver / perimeter firewall level",
+      "Inspect host memory and network traffic for DNS tunneling utilities (dnscat2, iodine)",
+      "Isolate compromised workstation and analyze recent process activity",
+      "Enforce internal DNS traffic through hardened corporate recursive DNS servers only"
+    ]
+  },
+  "T1078": {
+    "id": "T1078",
+    "name": "Valid Accounts",
+    "tactics": ["Defense Evasion", "Persistence", "Privilege Escalation", "Initial Access"],
+    "description": "Adversaries may obtain and abuse credentials of existing accounts to log in to target environments from impossible geographic locations.",
+    "subtechniques": ["T1078.002 Domain Accounts", "T1078.003 Cloud Accounts"],
+    "detection_rules": [
+      "Logins for same account from geographically distant locations within timeframe impossible by physical travel (< 1 hour)",
+      "Concurrent active sessions originating from distinct ASN / ISP providers"
+    ],
+    "recommendations": [
+      "Revoke active session tokens and force immediate global logout for affected account",
+      "Prompt user to confirm current physical location and verify authorized activity",
+      "Check VPN and Identity Provider (IdP) logs for compromise indicators",
+      "Enable Conditional Access policies requiring MFA and compliant device posture"
+    ]
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "datasource": "SimulatedSIEMDataSource",
+  "version": "1.0",
+  "fields": [
+    {
+      "name": "id",
+      "type": "integer",
+      "description": "Unique event identifier",
+      "allowed_in_where": true,
+      "allowed_in_select": true
+    },
+    {
+      "name": "timestamp",
+      "type": "datetime",
+      "description": "ISO-8601 timestamp of event occurrence",
+      "allowed_in_where": true,
+      "allowed_in_select": true
+    },
+    {
+      "name": "username",
+      "type": "string",
+      "description": "User account associated with event",
+      "allowed_in_where": true,
+      "allowed_in_select": true,
+      "allowed_in_groupby": true
+    },
+    {
+      "name": "source_ip",
+      "type": "ip_address",
+      "description": "Originating IP address",
+      "allowed_in_where": true,
+      "allowed_in_select": true,
+      "allowed_in_groupby": true
+    },
+    {
+      "name": "destination_ip",
+      "type": "ip_address",
+      "description": "Target IP address",
+      "allowed_in_where": true,
+      "allowed_in_select": true,
+      "allowed_in_groupby": true
+    },
+    {
+      "name": "source_port",
+      "type": "integer",
+      "description": "Originating port number",
+      "allowed_in_where": true,
+      "allowed_in_select": true
+    },
+    {
+      "name": "destination_port",
+      "type": "integer",
+      "description": "Target destination port number",
+      "allowed_in_where": true,
+      "allowed_in_select": true,
+      "allowed_in_groupby": true
+    },
+    {
+      "name": "event_type",
+      "type": "string",
+      "description": "Category of event (authentication, process_execution, network_connection, dns_query)",
+      "allowed_in_where": true,
+      "allowed_in_select": true,
+      "allowed_in_groupby": true
+    },
+    {
+      "name": "action",
+      "type": "string",
+      "description": "Action performed (login, execute, connect, query)",
+      "allowed_in_where": true,
+      "allowed_in_select": true
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "description": "Result status (success, failed, blocked, allowed)",
+      "allowed_in_where": true,
+      "allowed_in_select": true,
+      "allowed_in_groupby": true
+    },
+    {
+      "name": "hostname",
+      "type": "string",
+      "description": "Host/Device name where event occurred",
+      "allowed_in_where": true,
+      "allowed_in_select": true,
+      "allowed_in_groupby": true
+    },
+    {
+      "name": "process",
+      "type": "string",
+      "description": "Process executable name (e.g. powershell.exe)",
+      "allowed_in_where": true,
+      "allowed_in_select": true,
+      "allowed_in_groupby": true
+    },
+    {
+      "name": "parent_process",
+      "type": "string",
+      "description": "Parent process executable name (e.g. winword.exe)",
+      "allowed_in_where": true,
+      "allowed_in_select": true
+    },
+    {
+      "name": "command_line",
+      "type": "string",
+      "description": "Full command line string executed",
+      "allowed_in_where": true,
+      "allowed_in_select": true
+    },
+    {
+      "name": "domain",
+      "type": "string",
+      "description": "DNS domain queried",
+      "allowed_in_where": true,
+      "allowed_in_select": true,
+      "allowed_in_groupby": true
+    },
+    {
+      "name": "location_city",
+      "type": "string",
+      "description": "Geographic city location of source IP",
+      "allowed_in_where": true,
+      "allowed_in_select": true
+    },
+    {
+      "name": "location_country",
+      "type": "string",
+      "description": "Geographic country of source IP",
+      "allowed_in_where": true,
+      "allowed_in_select": true
+    }
+  ],
+  "allowed_operations": ["SELECT", "WHERE", "GROUP BY", "HAVING", "ORDER BY", "LIMIT", "COUNT", "DISTINCT", "AND", "OR", "LIKE", "=", ">", "<", ">=", "<="],
+  "forbidden_operations": ["DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "TRUNCATE", "CREATE", "EXEC", "EXECUTE", "UNION", ";"],
+  "limits": {
+    "max_time_range_days": 7,
+    "max_records": 1000
+  }
+}
