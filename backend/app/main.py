@@ -1,10 +1,11 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database.session import engine, Base
+from app.database.session import engine, Base, SessionLocal
+from app.database.models import SecurityEventModel
 from app.api.routes.investigations import router as investigations_router
 from app.api.routes.governance import router as governance_router
-from app.api.routes.security_events import router as security_events_router
+from app.api.routes.security_events import router as security_events_router, seed_demo_telemetry
 from app.api.routes.assets import router as assets_router
 
 # Initialize Database Schema
@@ -23,6 +24,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def startup_db_init():
+    """Ensure DB schema exists and initial demo security telemetry is seeded if empty."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        if db.query(SecurityEventModel).count() == 0:
+            seed_demo_telemetry(db)
+    except Exception as e:
+        print(f"Startup DB init check: {e}")
+    finally:
+        db.close()
 
 app.include_router(investigations_router)
 app.include_router(governance_router)

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
 from app.database.session import get_db
-from app.database.models import SecurityEventModel, AlertModel, IncidentModel
+from app.database.models import SecurityEventModel, AlertModel, IncidentModel, MonitoredAssetModel
 from app.services.detection.threat_engine import evaluate_event_rules
 
 router = APIRouter(prefix="/api", tags=["Security Events & Ingestion"])
@@ -17,11 +17,18 @@ class SecurityEventCreate(BaseModel):
     event_type: str = Field(..., example="authentication")
     action: str = Field(..., example="login")
     status: str = Field(..., example="failed")
-    username: Optional[str] = "demo_admin"
-    source_ip: Optional[str] = "192.168.56.101"
+    username: Optional[str] = "demo_user"
+    source_ip: Optional[str] = "192.168.1.10"
     destination_ip: Optional[str] = "10.0.0.5"
+    destination_port: Optional[int] = 443
     hostname: Optional[str] = "hexnova-app"
     endpoint: Optional[str] = "/api/v1/auth"
+    domain: Optional[str] = None
+    process: Optional[str] = None
+    parent_process: Optional[str] = None
+    command_line: Optional[str] = None
+    location_city: Optional[str] = None
+    location_country: Optional[str] = None
     user_agent: Optional[str] = "Mozilla/5.0"
     severity: Optional[str] = "LOW"
     raw_data: Optional[Dict[str, Any]] = None
@@ -44,11 +51,7 @@ def ingest_security_event(
     """
     POST /api/security-events
     Ingests live telemetry from hexnova.space or agent sources.
-    1. Validates incoming event
-    2. Stores event in SQLite database
-    3. Runs real detection rules engine
-    4. Creates Alert/Incident if rule matches
-    5. Returns created event and detection result!
+    Stores in SQLite, runs real detection rules engine, creates alerts.
     """
     now_str = event_in.timestamp or time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -61,8 +64,15 @@ def ingest_security_event(
         username=event_in.username,
         source_ip=event_in.source_ip,
         destination_ip=event_in.destination_ip,
+        destination_port=event_in.destination_port,
         hostname=event_in.hostname,
         endpoint=event_in.endpoint,
+        domain=event_in.domain,
+        process=event_in.process,
+        parent_process=event_in.parent_process,
+        command_line=event_in.command_line,
+        location_city=event_in.location_city,
+        location_country=event_in.location_country,
         user_agent=event_in.user_agent,
         severity=event_in.severity or "LOW",
         raw_data=event_in.raw_data or {}
@@ -91,19 +101,20 @@ def ingest_security_event(
 
 @router.get("/security-events")
 def get_security_events(
-    source: Optional[str] = Query(None),
+    source: Optional[str] = Query(None, alias="asset"),
     event_type: Optional[str] = Query(None),
     source_ip: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
     limit: int = 50,
     db: Session = Depends(get_db)
 ):
     """
     GET /api/security-events
-    Returns real events directly from SQLite database with optional filters.
+    Returns real events directly from SQLite database with filters.
     """
     query = db.query(SecurityEventModel)
-    if source:
+    if source and source != "all":
         query = query.filter(SecurityEventModel.source == source)
     if event_type:
         query = query.filter(SecurityEventModel.event_type == event_type)
@@ -111,6 +122,8 @@ def get_security_events(
         query = query.filter(SecurityEventModel.source_ip == source_ip)
     if severity:
         query = query.filter(SecurityEventModel.severity == severity)
+    if status:
+        query = query.filter(SecurityEventModel.status == status)
 
     events = query.order_by(SecurityEventModel.id.desc()).limit(limit).all()
 
@@ -125,8 +138,15 @@ def get_security_events(
             "username": e.username,
             "source_ip": e.source_ip,
             "destination_ip": e.destination_ip,
+            "destination_port": e.destination_port,
             "hostname": e.hostname,
             "endpoint": e.endpoint,
+            "domain": e.domain,
+            "process": e.process,
+            "parent_process": e.parent_process,
+            "command_line": e.command_line,
+            "location_city": e.location_city,
+            "location_country": e.location_country,
             "severity": e.severity
         }
         for e in events
@@ -153,6 +173,7 @@ def ingest_cloudflare_event(
         username="web_client",
         source_ip=cf_event.client_ip,
         destination_ip="104.21.12.80",
+        destination_port=443,
         hostname=cf_event.host,
         endpoint=cf_event.uri,
         user_agent=cf_event.user_agent,
@@ -170,26 +191,46 @@ def ingest_cloudflare_event(
         "status": "INGESTED",
         "provider": "Cloudflare WAF",
         "event_id": db_event.id,
-        "alert_triggered": True if triggered_alert else False,
-        "alert_details": {
-            "id": triggered_alert.id,
-            "title": triggered_alert.title,
-            "severity": triggered_alert.severity
-        } if triggered_alert else None
+        "alert_triggered": True if triggered_alert else False
     }
 
 @router.post("/security-events/demo-attack")
-def trigger_demo_attack(db: Session = Depends(get_db)):
+@router.post("/demo/seed")
+def seed_demo_telemetry(db: Session = Depends(get_db)):
     """
-    Hackathon Demo Trigger: Automatically generates 5 failed logins + 1 successful login for demo_admin from 192.168.56.101.
+    POST /api/demo/seed (and POST /api/security-events/demo-attack)
+    Inserts realistic security telemetry into SQLite DB for all 5 threat scenarios:
+    A. Brute Force (6 failed logins + 1 successful login for demo_user from 192.168.1.10 on hexnova.space)
+    B. Suspicious PowerShell (process_execution with -enc flag)
+    C. Port Scanning (12 connections across distinct destination ports)
+    D. Suspicious DNS (12 queries to exfil-data.tunnel.com)
+    E. Impossible Travel (john_doe logging in from Tokyo, Japan then London, UK 5m later)
     """
     now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    target_ip = "192.168.56.101"
-    target_user = "demo_admin"
 
-    # Insert 5 failed logins
-    for i in range(5):
-        event = SecurityEventModel(
+    # Seed Monitored Asset if missing
+    asset = db.query(MonitoredAssetModel).filter(MonitoredAssetModel.domain == "hexnova.space").first()
+    if not asset:
+        asset = MonitoredAssetModel(
+            id="asset-1",
+            name="HexNova",
+            domain="hexnova.space",
+            type="web_application",
+            status="monitoring",
+            environment="Authorized / Controlled Environment",
+            created_at=now_str
+        )
+        db.add(asset)
+        db.commit()
+
+    seeded_events = []
+
+    # Scenario A: Brute Force (6 failed logins + 1 successful login for demo_user from 192.168.1.10 on hexnova.space)
+    target_ip = "192.168.1.10"
+    target_user = "demo_user"
+
+    for _ in range(6):
+        seeded_events.append(SecurityEventModel(
             timestamp=now_str,
             source="hexnova.space",
             event_type="authentication",
@@ -198,15 +239,13 @@ def trigger_demo_attack(db: Session = Depends(get_db)):
             username=target_user,
             source_ip=target_ip,
             destination_ip="10.0.0.5",
+            destination_port=443,
             hostname="hexnova-app",
             endpoint="/api/v1/auth/login",
             severity="HIGH"
-        )
-        db.add(event)
-        db.commit()
+        ))
 
-    # Insert 1 successful login
-    succ_event = SecurityEventModel(
+    seeded_events.append(SecurityEventModel(
         timestamp=now_str,
         source="hexnova.space",
         event_type="authentication",
@@ -215,72 +254,99 @@ def trigger_demo_attack(db: Session = Depends(get_db)):
         username=target_user,
         source_ip=target_ip,
         destination_ip="10.0.0.5",
+        destination_port=443,
         hostname="hexnova-app",
         endpoint="/api/v1/auth/login",
         severity="LOW"
-    )
-    db.add(succ_event)
-    db.commit()
+    ))
 
-    # Run detection
-    triggered_alert = evaluate_event_rules(succ_event, db)
+    # Scenario B: Suspicious PowerShell (T1059.001)
+    seeded_events.append(SecurityEventModel(
+        timestamp=now_str,
+        source="hexnova.space",
+        event_type="process_execution",
+        action="execute",
+        status="success",
+        username="service_acct",
+        source_ip="10.0.1.15",
+        hostname="workstation-01",
+        process="powershell.exe",
+        parent_process="winword.exe",
+        command_line="powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAA=",
+        severity="HIGH"
+    ))
 
-    return {
-        "status": "DEMO_ATTACK_GENERATED",
-        "events_created": 6,
-        "target_ip": target_ip,
-        "target_user": target_user,
-        "alert_triggered": True if triggered_alert else False
-    }
-
-@router.post("/demo/seed")
-def seed_demo_telemetry(db: Session = Depends(get_db)):
-    """
-    POST /api/demo/seed
-    Seeds controlled, realistic test telemetry into SQLite DB for instant hackathon demonstration.
-    """
-    now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    sample_events = [
-        # Brute force sample
-        {"event_type": "authentication", "action": "login", "status": "failed", "username": "admin", "source_ip": "198.51.100.44", "severity": "HIGH"},
-        {"event_type": "authentication", "action": "login", "status": "failed", "username": "admin", "source_ip": "198.51.100.44", "severity": "HIGH"},
-        {"event_type": "authentication", "action": "login", "status": "failed", "username": "admin", "source_ip": "198.51.100.44", "severity": "HIGH"},
-        {"event_type": "authentication", "action": "login", "status": "failed", "username": "admin", "source_ip": "198.51.100.44", "severity": "HIGH"},
-        {"event_type": "authentication", "action": "login", "status": "failed", "username": "admin", "source_ip": "198.51.100.44", "severity": "HIGH"},
-        
-        # PowerShell sample
-        {"event_type": "process_execution", "action": "powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAA=", "status": "success", "username": "service_acct", "source_ip": "10.0.1.15", "endpoint": "powershell.exe", "severity": "HIGH"},
-        
-        # Port scan sample
-        {"event_type": "network_connection", "action": "connect", "status": "failed", "username": "unknown", "source_ip": "203.0.113.88", "destination_ip": "10.0.0.12", "severity": "MEDIUM"},
-
-        # DNS sample
-        {"event_type": "dns_query", "action": "query", "status": "success", "username": "dev_user", "source_ip": "10.0.2.100", "endpoint": "malicious-c2.tunnel.com", "severity": "MEDIUM"},
-    ]
-
-    inserted_count = 0
-    for e in sample_events:
-        db_e = SecurityEventModel(
+    # Scenario C: Port Scanning (T1046) - 12 distinct ports
+    scan_ip = "203.0.113.88"
+    ports = [21, 22, 23, 80, 443, 8080, 3306, 5432, 8443, 27017, 6379, 9200]
+    for port in ports:
+        seeded_events.append(SecurityEventModel(
             timestamp=now_str,
             source="hexnova.space",
-            event_type=e["event_type"],
-            action=e["action"],
-            status=e["status"],
-            username=e["username"],
-            source_ip=e["source_ip"],
-            destination_ip=e.get("destination_ip", "10.0.0.5"),
-            hostname="hexnova-prod",
-            endpoint=e.get("endpoint", "/api/v1"),
-            severity=e["severity"]
-        )
-        db.add(db_e)
+            event_type="network_connection",
+            action="connect",
+            status="failed",
+            username="network",
+            source_ip=scan_ip,
+            destination_ip="10.0.0.12",
+            destination_port=port,
+            hostname="firewall-edge",
+            severity="MEDIUM"
+        ))
+
+    # Scenario D: Suspicious DNS (T1071.004) - 12 queries
+    for _ in range(12):
+        seeded_events.append(SecurityEventModel(
+            timestamp=now_str,
+            source="hexnova.space",
+            event_type="dns_query",
+            action="query",
+            status="success",
+            username="dev_user",
+            source_ip="10.0.2.100",
+            hostname="dev-workstation",
+            domain="exfil-data.tunnel.com",
+            severity="MEDIUM"
+        ))
+
+    # Scenario E: Impossible Travel (T1078)
+    seeded_events.append(SecurityEventModel(
+        timestamp=now_str,
+        source="hexnova.space",
+        event_type="authentication",
+        action="login",
+        status="success",
+        username="john_doe",
+        source_ip="103.2.1.5",
+        hostname="vpn-tokyo",
+        location_city="Tokyo",
+        location_country="Japan",
+        severity="LOW"
+    ))
+    seeded_events.append(SecurityEventModel(
+        timestamp=now_str,
+        source="hexnova.space",
+        event_type="authentication",
+        action="login",
+        status="success",
+        username="john_doe",
+        source_ip="81.2.3.4",
+        hostname="vpn-london",
+        location_city="London",
+        location_country="UK",
+        severity="HIGH"
+    ))
+
+    # Save to SQLite and run detection rules
+    for ev in seeded_events:
+        db.add(ev)
         db.commit()
-        evaluate_event_rules(db_e, db)
-        inserted_count += 1
+        db.refresh(ev)
+        evaluate_event_rules(ev, db)
 
     return {
-        "status": "SEEDED",
-        "inserted_events": inserted_count,
+        "status": "DEMO_DATA_SEEDED",
+        "inserted_events": len(seeded_events),
+        "target_asset": "hexnova.space",
         "timestamp": now_str
     }

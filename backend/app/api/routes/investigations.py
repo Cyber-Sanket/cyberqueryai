@@ -6,7 +6,7 @@ from sqlalchemy import func, case
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
-from app.database.session import get_db
+from app.database.session import get_db, engine, Base
 from app.database.models import InvestigationModel, SecurityEventModel, AuditLogModel, AlertModel, IncidentModel
 from app.schemas.investigation import InvestigationResponse, DashboardSummary, QueryValidationCheck
 from app.datasources.simulated_siem import SimulatedSIEMDataSource, execute_query_on_siem
@@ -280,6 +280,11 @@ async def run_investigation(
     mitre_tech = threat_analysis.get("mitre_technique")
     mitre_info = mitre_mapper.get_technique_info(mitre_tech) if mitre_tech else {}
 
+    # Requirement 11: Clear Empty-State Response
+    explanation_text = threat_analysis.get("explanation")
+    if len(raw_results) == 0:
+        explanation_text = "No matching security events found for the selected time range."
+
     res_data = {
         "id": investigation_id,
         "question": query_text,
@@ -290,12 +295,12 @@ async def run_investigation(
         "query": generated_sql,
         "validation": val_check.model_dump(),
         "error": None,
-        "risk_level": threat_analysis.get("risk_level", "LOW"),
-        "risk_score": threat_analysis.get("risk_score", 10),
-        "mitre_technique": mitre_tech,
-        "mitre_confidence": threat_analysis.get("confidence", "Low"),
-        "mitre_evidence": threat_analysis.get("mitre_evidence", "Evidence matches patterns."),
-        "mitre_details": mitre_info,
+        "risk_level": threat_analysis.get("risk_level", "LOW") if len(raw_results) > 0 else "LOW",
+        "risk_score": threat_analysis.get("risk_score", 10) if len(raw_results) > 0 else 0,
+        "mitre_technique": mitre_tech if len(raw_results) > 0 else None,
+        "mitre_confidence": threat_analysis.get("confidence", "Low") if len(raw_results) > 0 else "N/A",
+        "mitre_evidence": threat_analysis.get("mitre_evidence") if len(raw_results) > 0 else "No matching events found in database.",
+        "mitre_details": mitre_info if len(raw_results) > 0 else {},
         "results_count": len(raw_results),
         "results": raw_results,
         "query_explanation": [
@@ -305,7 +310,7 @@ async def run_investigation(
             f"4. Gate 2 Safety Gate: PASSED ✅ (Read-only verified, max time cap satisfied, schema whitelisted)",
             f"5. Executed Query against SQLite DB Telemetry: {len(raw_results)} matching events returned"
         ],
-        "threat_explanation": threat_analysis.get("explanation", "Investigation executed cleanly."),
+        "threat_explanation": explanation_text,
         "recommended_actions": threat_analysis.get("recommended_actions", []),
         "execution_time_ms": exec_time,
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -321,8 +326,8 @@ async def run_investigation(
             validation_result=val_check.model_dump(),
             execution_time_ms=exec_time,
             results_count=len(raw_results),
-            risk_score=threat_analysis.get("risk_score", 10),
-            mitre_technique=mitre_tech,
+            risk_score=threat_analysis.get("risk_score", 10) if len(raw_results) > 0 else 0,
+            mitre_technique=mitre_tech if len(raw_results) > 0 else None,
             created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ")
         )
         db.add(db_inv)
