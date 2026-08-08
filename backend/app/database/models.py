@@ -1,87 +1,90 @@
-from sqlalchemy import Column, String, Integer, DateTime, JSON, Text, Boolean
-from datetime import datetime
+import time
+from sqlalchemy import Column, Integer, String, JSON, Boolean, DateTime, Text, Float
 from app.database.session import Base
 
 class SecurityEventModel(Base):
     __tablename__ = "security_events"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     timestamp = Column(String, index=True)
-    username = Column(String, index=True)
-    source_ip = Column(String, index=True)
-    destination_ip = Column(String)
-    source_port = Column(Integer)
-    destination_port = Column(Integer)
-    event_type = Column(String, index=True)
-    action = Column(String)
-    status = Column(String)
-    hostname = Column(String)
-    process = Column(String)
-    parent_process = Column(String)
-    command_line = Column(Text)
-    domain = Column(String)
-    location_city = Column(String)
-    location_country = Column(String)
-
-class InvestigationModel(Base):
-    __tablename__ = "investigations"
-
-    id = Column(String, primary_key=True)
-    user_id = Column(String, default="analyst-1")
-    question = Column(Text, nullable=False)
-    generated_intent = Column(JSON, nullable=False)
-    generated_query = Column(Text, nullable=False)
-    validation_result = Column(JSON, nullable=False)
-    execution_time_ms = Column(Integer, default=0)
-    results_count = Column(Integer, default=0)
-    risk_score = Column(Integer, default=0)
-    mitre_technique = Column(String, nullable=True)
-    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    source = Column(String, index=True, default="hexnova.space")
+    event_type = Column(String, index=True) # authentication, process_execution, network_connection, dns_query, http_request
+    action = Column(String) # login, connect, query, execute
+    status = Column(String, index=True) # success, failed
+    username = Column(String, index=True, nullable=True)
+    source_ip = Column(String, index=True, nullable=True)
+    destination_ip = Column(String, nullable=True)
+    hostname = Column(String, nullable=True)
+    endpoint = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    severity = Column(String, default="LOW")
+    raw_data = Column(JSON, nullable=True)
 
 class AlertModel(Base):
     __tablename__ = "alerts"
 
-    id = Column(String, primary_key=True)
-    title = Column(String, nullable=False)
-    severity = Column(String, nullable=False) # CRITICAL, HIGH, MEDIUM, LOW
-    mitre_technique = Column(String, nullable=False)
-    target_user = Column(String)
-    source_ip = Column(String)
-    status = Column(String, default="NEW") # NEW, INVESTIGATING, RESOLVED
-    created_at = Column(String, default=lambda: datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
-    description = Column(Text)
+    id = Column(String, primary_key=True, index=True)
+    created_at = Column(String, index=True)
+    title = Column(String)
+    severity = Column(String, index=True) # LOW, MEDIUM, HIGH, CRITICAL
+    source_ip = Column(String, index=True)
+    mitre_technique = Column(String, index=True) # e.g. T1110
+    description = Column(String)
+    status = Column(String, default="Open") # Open, Investigating, Closed
+    evidence = Column(JSON, nullable=True)
+    target_user = Column(String, nullable=True)
+
+class IncidentModel(Base):
+    __tablename__ = "incidents"
+
+    id = Column(String, primary_key=True, index=True)
+    created_at = Column(String, index=True)
+    title = Column(String)
+    severity = Column(String, index=True) # LOW, MEDIUM, HIGH, CRITICAL
+    status = Column(String, default="Active") # Active, Resolved
+    source_ip = Column(String, index=True)
+    event_count = Column(Integer, default=1)
+    mitre_technique = Column(String, index=True)
+    summary = Column(String)
+
+class InvestigationModel(Base):
+    __tablename__ = "investigations"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String)
+    question = Column(String)
+    generated_intent = Column(JSON)
+    generated_query = Column(String)
+    validation_result = Column(JSON)
+    execution_time_ms = Column(Integer)
+    results_count = Column(Integer)
+    risk_score = Column(Integer)
+    mitre_technique = Column(String, nullable=True)
+    created_at = Column(String, index=True)
+
+class GovernancePolicyModel(Base):
+    __tablename__ = "governance_policy"
+
+    id = Column(Integer, primary_key=True, default=1)
+    max_time_range_hours = Column(Integer, default=24)
+    max_results = Column(Integer, default=500)
+    require_time_range = Column(Boolean, default=True)
+    read_only_execution = Column(Boolean, default=True)
+    allowed_fields = Column(JSON)
+    allowed_operations = Column(JSON)
+    enabled_scenarios = Column(JSON)
+    audit_logging_enabled = Column(Boolean, default=True)
+    updated_at = Column(String)
+    updated_by = Column(String, default="admin")
 
 class AuditLogModel(Base):
     __tablename__ = "audit_logs"
 
-    id = Column(String, primary_key=True)
-    investigation_id = Column(String)
+    id = Column(String, primary_key=True, index=True)
+    investigation_id = Column(String, nullable=True)
     action = Column(String)
     user_id = Column(String)
-    timestamp = Column(String, default=lambda: datetime.utcnow().isoformat())
+    timestamp = Column(String)
     details = Column(JSON)
 
-class GovernancePolicyModel(Base):
-    __tablename__ = "governance_policies"
-
-    id = Column(String, primary_key=True, default="active_policy")
-    max_time_range_hours = Column(Integer, default=168)
-    max_results = Column(Integer, default=1000)
-    require_time_range = Column(Boolean, default=True)
-    read_only_execution = Column(Boolean, default=True)
-    allowed_fields = Column(JSON, default=list)
-    allowed_operations = Column(JSON, default=list)
-    enabled_scenarios = Column(JSON, default=dict)
-    audit_logging_enabled = Column(Boolean, default=True)
-    updated_at = Column(String, default=lambda: datetime.utcnow().isoformat())
-    updated_by = Column(String, default="admin")
-
-class GovernanceAuditModel(Base):
-    __tablename__ = "governance_audits"
-
-    id = Column(String, primary_key=True)
-    admin_id = Column(String, nullable=False)
-    setting_changed = Column(String, nullable=False)
-    old_value = Column(String)
-    new_value = Column(String)
-    timestamp = Column(String, default=lambda: datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+GovernanceAuditModel = AuditLogModel

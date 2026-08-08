@@ -10,6 +10,12 @@ const client = axios.create({
 });
 
 export const api = {
+  // Health Check
+  getHealth: async () => {
+    const res = await client.get('/health');
+    return res.data;
+  },
+
   // Auth
   login: async (username, password) => {
     const res = await client.post('/auth/login', { username, password });
@@ -20,10 +26,15 @@ export const api = {
     return res.data;
   },
 
-  // Dashboard Summary & Filter
+  // Dashboard Summary & Real Stats
   getDashboardSummary: async (asset = null) => {
     const url = asset && asset !== 'all' ? `/dashboard/summary?asset=${encodeURIComponent(asset)}` : '/dashboard/summary';
     const res = await client.get(url);
+    return res.data;
+  },
+
+  getStats: async () => {
+    const res = await client.get('/stats');
     return res.data;
   },
 
@@ -48,11 +59,11 @@ export const api = {
     return res.data;
   },
 
-  // Investigations
+  // Investigations & AI Workbench
   createInvestigation: async (prompt, timeRange = '24h') => {
     const user = JSON.parse(localStorage.getItem('cyberquery_user') || '{}');
     const role = user.role || 'analyst';
-    const res = await client.post('/investigations', { prompt, time_range: timeRange }, {
+    const res = await client.post('/investigate', { prompt, time_range: timeRange }, {
       headers: { 'X-User-Role': role }
     });
     return res.data;
@@ -68,9 +79,14 @@ export const api = {
     return res.data;
   },
 
-  // Alerts & MITRE
+  // Alerts, Incidents & MITRE
   getAlerts: async () => {
     const res = await client.get('/alerts');
+    return res.data;
+  },
+
+  getIncidents: async () => {
+    const res = await client.get('/incidents');
     return res.data;
   },
 
@@ -102,11 +118,21 @@ export const api = {
     return res.data;
   },
 
-  // Security Events & HexNova Ingestion
+  // Security Events & Cloudflare / HexNova Telemetry
   ingestSecurityEvent: async (payload) => {
     const res = await client.post('/security-events', payload, {
       headers: { 'X-API-Key': 'hexnova-sec-key-2026' }
     });
+    return res.data;
+  },
+
+  ingestCloudflareEvent: async (payload) => {
+    const res = await client.post('/cloudflare/events', payload);
+    return res.data;
+  },
+
+  seedDemoData: async () => {
+    const res = await client.post('/demo/seed');
     return res.data;
   },
 
@@ -116,7 +142,7 @@ export const api = {
   },
 
   getLatestEvents: async (limit = 15) => {
-    const res = await client.get(`/security-events/latest?limit=${limit}`);
+    const res = await client.get(`/security-events?limit=${limit}`);
     return res.data;
   }
 };

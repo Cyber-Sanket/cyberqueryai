@@ -2,11 +2,12 @@ import uuid
 import time
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func, case
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
 from app.database.session import get_db
-from app.database.models import InvestigationModel, SecurityEventModel, AuditLogModel, AlertModel
+from app.database.models import InvestigationModel, SecurityEventModel, AuditLogModel, AlertModel, IncidentModel
 from app.schemas.investigation import InvestigationResponse, DashboardSummary, QueryValidationCheck
 from app.datasources.simulated_siem import SimulatedSIEMDataSource, execute_query_on_siem
 from app.services.ai.intent_parser import parse_user_intent, AIIntentParser
@@ -17,7 +18,7 @@ from app.services.detection.threat_engine import analyze_threat, ThreatEngine
 from app.services.mitre.attack_mapper import MitreAttackMapper
 from app.api.routes.governance import get_or_create_policy
 
-router = APIRouter(prefix="/api", tags=["Investigations"])
+router = APIRouter(prefix="/api", tags=["Investigations & Stats"])
 
 datasource = SimulatedSIEMDataSource()
 intent_parser_obj = AIIntentParser()
@@ -37,26 +38,113 @@ class QueryValidateRequest(BaseModel):
 class QueryExecuteRequest(BaseModel):
     sql_query: str
 
-@APIRouter(prefix="/api/auth", tags=["Auth"]).post("/login")
-def login(payload: Dict[str, str]):
-    username = payload.get("username", "analyst")
-    role = "admin" if username == "admin" else "analyst"
-    return {
-        "access_token": f"token-{uuid.uuid4().hex[:8]}",
-        "token_type": "bearer",
-        "user": {
-            "username": username,
-            "role": role,
-            "permissions": ["read:logs", "investigate", "view:dashboard", "view:governance"] if role == "analyst" else ["*"]
+@router.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    """
+    GET /api/health
+    Confirms SQLite database connectivity and API readiness.
+    """
+    try:
+        event_count = db.query(SecurityEventModel).count()
+        return {
+            "status": "ok",
+            "database": "connected",
+            "service": "CyberQuery API",
+            "total_events_stored": event_count,
+            "monitored_asset": "hexnova.space"
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connectivity failed: {str(e)}")
+
+@router.get("/stats")
+def get_real_stats(db: Session = Depends(get_db)):
+    """
+    GET /api/stats
+    Calculates security statistics dynamically from SQLite database without hardcoded values.
+    """
+    total_events = db.query(SecurityEventModel).count()
+    total_alerts = db.query(AlertModel).count()
+    high_risk = db.query(AlertModel).filter(AlertModel.severity.in_(["HIGH", "CRITICAL"])).count()
+    critical = db.query(AlertModel).filter(AlertModel.severity == "CRITICAL").count()
+    active_incidents = db.query(IncidentModel).count()
+
+    # Top suspicious IPs calculated from DB
+    raw_ip_stats = db.query(
+        SecurityEventModel.source_ip,
+        func.count(SecurityEventModel.id).label("total_events")
+    ).filter(SecurityEventModel.source_ip.isnot(None)).group_by(SecurityEventModel.source_ip).order_by(func.count(SecurityEventModel.id).desc()).limit(5).all()
+
+    suspicious_ips = []
+    for r in raw_ip_stats:
+        failed_count = db.query(SecurityEventModel).filter(
+            SecurityEventModel.source_ip == r.source_ip,
+            SecurityEventModel.status == "failed"
+        ).count()
+        suspicious_ips.append({
+            "source_ip": r.source_ip,
+            "country": "External",
+            "failed_logins": failed_count,
+            "event_count": r.total_events
+        })
+
+    # Top targeted users calculated from DB
+    raw_user_stats = db.query(
+        SecurityEventModel.username,
+        func.count(SecurityEventModel.id).label("total_events")
+    ).filter(SecurityEventModel.username.isnot(None)).group_by(SecurityEventModel.username).order_by(func.count(SecurityEventModel.id).desc()).limit(5).all()
+
+    targeted_users = []
+    for u in raw_user_stats:
+        failed_count = db.query(SecurityEventModel).filter(
+            SecurityEventModel.username == u.username,
+            SecurityEventModel.status == "failed"
+        ).count()
+        targeted_users.append({
+            "username": u.username,
+            "primary_host": "hexnova-app",
+            "failed_logins": failed_count,
+            "event_count": u.total_events
+        })
+
+    return {
+        "total_events": total_events,
+        "total_alerts": total_alerts,
+        "high_risk_alerts": high_risk,
+        "critical_alerts": critical,
+        "active_incidents": active_incidents,
+        "suspicious_ips": suspicious_ips,
+        "targeted_users": targeted_users
     }
 
+@router.get("/alerts")
+def get_alerts(db: Session = Depends(get_db)):
+    """
+    GET /api/alerts
+    Returns real alerts from SQLite database.
+    """
+    alerts = db.query(AlertModel).order_by(AlertModel.created_at.desc()).all()
+    return alerts
+
+@router.get("/incidents")
+def get_incidents(db: Session = Depends(get_db)):
+    """
+    GET /api/incidents
+    Returns real active incidents from SQLite database.
+    """
+    incidents = db.query(IncidentModel).order_by(IncidentModel.created_at.desc()).all()
+    return incidents
+
+@router.post("/investigate")
 @router.post("/investigations")
-async def create_investigation(
+async def run_investigation(
     req: UniversalInvestigationRequest, 
     db: Session = Depends(get_db),
     x_user_role: Optional[str] = Header("analyst")
 ):
+    """
+    POST /api/investigate (and POST /api/investigations)
+    Natural-language security investigation execution workbench.
+    """
     start_time = time.time()
     investigation_id = f"inv-{uuid.uuid4().hex[:8]}"
     query_text = req.prompt or req.question or "Find suspicious login activity"
@@ -182,7 +270,7 @@ async def create_investigation(
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ")
         }
 
-    # Execute Safe Query on SIEM Telemetry
+    # Execute Safe Query on SQLite Database Telemetry
     raw_results = execute_query_on_siem(generated_sql, db)
     exec_time = int((time.time() - start_time) * 1000)
 
@@ -215,7 +303,7 @@ async def create_investigation(
             "2. Gate 1 Intent Gate: PASSED ✅",
             f"3. Query Builder parsed intent into Query DSL: scenario={intent.get('investigation_type')}",
             f"4. Gate 2 Safety Gate: PASSED ✅ (Read-only verified, max time cap satisfied, schema whitelisted)",
-            f"5. Executed Query against SIEM Telemetry: {len(raw_results)} matching events returned"
+            f"5. Executed Query against SQLite DB Telemetry: {len(raw_results)} matching events returned"
         ],
         "threat_explanation": threat_analysis.get("explanation", "Investigation executed cleanly."),
         "recommended_actions": threat_analysis.get("recommended_actions", []),
@@ -256,87 +344,6 @@ async def create_investigation(
 
     return res_data
 
-# Modular Sub-Endpoints
-@router.post("/investigations/{id}/validate-intent")
-def validate_investigation_intent(id: str, payload: Dict[str, str], db: Session = Depends(get_db)):
-    question = payload.get("question", "")
-    gov = get_or_create_policy(db)
-    governance_policy = {"enabled_scenarios": gov.enabled_scenarios}
-    return validate_intent(question, governance_policy=governance_policy)
-
-@router.post("/investigations/{id}/generate-query")
-async def generate_investigation_query(id: str, payload: Dict[str, str], db: Session = Depends(get_db)):
-    question = payload.get("question", "")
-    intent = await parse_user_intent(question)
-    gov = get_or_create_policy(db)
-    governance_policy = {"max_results": gov.max_results}
-    query = build_sql_query(intent, governance_policy=governance_policy)
-    return {"intent": intent, "query": query}
-
-@router.post("/queries/validate")
-def validate_query_endpoint(req: QueryValidateRequest, db: Session = Depends(get_db)):
-    gov = get_or_create_policy(db)
-    governance_policy = {
-        "max_time_range_hours": gov.max_time_range_hours,
-        "max_results": gov.max_results,
-        "require_time_range": gov.require_time_range,
-        "read_only_execution": gov.read_only_execution,
-        "allowed_fields": gov.allowed_fields,
-        "allowed_operations": gov.allowed_operations
-    }
-    return validate_query(req.sql_query, {}, raw_question=req.question, governance_policy=governance_policy)
-
-@router.post("/queries/execute")
-def execute_query_endpoint(req: QueryExecuteRequest, db: Session = Depends(get_db)):
-    gov = get_or_create_policy(db)
-    governance_policy = {
-        "max_time_range_hours": gov.max_time_range_hours,
-        "max_results": gov.max_results,
-        "require_time_range": gov.require_time_range,
-        "read_only_execution": gov.read_only_execution,
-        "allowed_fields": gov.allowed_fields,
-        "allowed_operations": gov.allowed_operations
-    }
-    val = validate_query(req.sql_query, {}, governance_policy=governance_policy)
-    if not val.get("safe"):
-        raise HTTPException(status_code=400, detail=f"Query Blocked by Gate 2: {val.get('reason')}")
-    results = execute_query_on_siem(req.sql_query, db)
-    return {"status": "EXECUTED", "count": len(results), "results": results}
-
-@router.get("/events")
-def get_events_alias(limit: int = 15, db: Session = Depends(get_db)):
-    events = db.query(SecurityEventModel).order_by(SecurityEventModel.id.desc()).limit(limit).all()
-    return [
-        {
-            "id": str(e.id),
-            "timestamp": e.timestamp,
-            "username": e.username,
-            "source_ip": e.source_ip,
-            "event_type": e.event_type,
-            "action": e.action,
-            "status": e.status,
-            "hostname": e.hostname
-        }
-        for e in events
-    ]
-
-@router.get("/investigations")
-def get_investigations(limit: int = 20, db: Session = Depends(get_db)):
-    invs = db.query(InvestigationModel).order_by(InvestigationModel.created_at.desc()).limit(limit).all()
-    return invs
-
-@router.get("/investigations/{id}")
-def get_investigation_by_id(id: str, db: Session = Depends(get_db)):
-    inv = db.query(InvestigationModel).filter(InvestigationModel.id == id).first()
-    if not inv:
-        raise HTTPException(status_code=404, detail="Investigation record not found")
-    return inv
-
-@router.get("/alerts")
-def get_alerts(db: Session = Depends(get_db)):
-    alerts = db.query(AlertModel).order_by(AlertModel.created_at.desc()).all()
-    return alerts
-
 @router.get("/dashboard/summary")
 def get_dashboard_summary(asset: Optional[str] = Query(None), db: Session = Depends(get_db)):
     """
@@ -358,18 +365,18 @@ def get_dashboard_summary(asset: Optional[str] = Query(None), db: Session = Depe
             "type": "web_application",
             "status": "monitoring",
             "environment": "Authorized / Controlled Environment",
-            "events_count": total_events or 12842,
-            "alerts_count": total_alerts or 7,
-            "risk_level": "Medium" if total_alerts > 0 else "Low"
+            "events_count": total_events,
+            "alerts_count": total_alerts,
+            "risk_level": "High" if high_risk > 2 else ("Medium" if total_alerts > 0 else "Low")
         }
     ]
 
     return {
         "total_assets": 1,
-        "total_events": total_events or 12842,
-        "total_alerts": total_alerts or 7,
-        "high_risk_alerts": high_risk or 3,
-        "critical_alerts": critical or 1,
+        "total_events": total_events,
+        "total_alerts": total_alerts,
+        "high_risk_alerts": high_risk,
+        "critical_alerts": critical,
         "active_asset_filter": asset or "all",
         "monitored_assets": monitored_assets,
         "recent_alerts": [
@@ -386,6 +393,18 @@ def get_dashboard_summary(asset: Optional[str] = Query(None), db: Session = Depe
             for a in recent_alerts
         ]
     }
+
+@router.get("/investigations")
+def get_investigations(limit: int = 20, db: Session = Depends(get_db)):
+    invs = db.query(InvestigationModel).order_by(InvestigationModel.created_at.desc()).limit(limit).all()
+    return invs
+
+@router.get("/investigations/{id}")
+def get_investigation_by_id(id: str, db: Session = Depends(get_db)):
+    inv = db.query(InvestigationModel).filter(InvestigationModel.id == id).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Investigation record not found")
+    return inv
 
 @router.get("/mitre/{technique}")
 def get_mitre_details(technique: str):
