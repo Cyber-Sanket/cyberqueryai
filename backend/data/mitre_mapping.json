@@ -84,5 +84,48 @@
       "Check VPN and Identity Provider (IdP) logs for compromise indicators",
       "Enable Conditional Access policies requiring MFA and compliant device posture"
     ]
+  },
+  "T1068": {
+    "id": "T1068",
+    "name": "Exploitation for Privilege Escalation",
+    "tactics": ["Privilege Escalation"],
+    "description": "Adversaries may exploit software vulnerabilities in attempts to elevate privileges on system components.",
+    "subtechniques": [],
+    "detection_rules": [
+      "Sudden privilege escalation commands (sudo, runas) by non-privileged accounts",
+      "Execution of system binaries with elevated root rights"
+    ],
+    "recommendations": [
+      "Audit sudoers configuration file and user permissions",
+      "Isolate host workstation and check for local privilege escalation exploits"
+    ]
+  },
+  "T1041": {
+    "id": "T1041",
+    "name": "Exfiltration Over C2 Channel",
+    "tactics": ["Exfiltration"],
+    "description": "Adversaries may steal data by exfiltrating it over an existing command and control channel.",
+    "subtechniques": [],
+    "detection_rules": [
+      "High volume HTTP POST upload events or binary transfers to external IPs"
+    ],
+    "recommendations": [
+      "Block destination IP on edge firewall",
+      "Perform DLP triage on exfiltrated dataset"
+    ]
+  },
+  "T1190": {
+    "id": "T1190",
+    "name": "Exploit Public-Facing Application",
+    "tactics": ["Initial Access"],
+    "description": "Adversaries may attempt to take advantage of a weakness in an Internet-facing computer or program.",
+    "subtechniques": [],
+    "detection_rules": [
+      "HTTP requests containing SQL injection or XSS payloads blocked by WAF"
+    ],
+    "recommendations": [
+      "Verify edge WAF rules",
+      "Audit web application code for input validation vulnerabilities"
+    ]
   }
 }

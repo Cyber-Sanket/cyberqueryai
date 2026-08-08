@@ -28,7 +28,7 @@ If VALID:
 Output JSON:
 {
   "is_valid": true,
-  "investigation_type": "brute_force" | "powershell_abuse" | "port_scan" | "dns_tunneling" | "impossible_travel" | "generic",
+  "investigation_type": "brute_force" | "powershell_abuse" | "port_scan" | "dns_tunneling" | "impossible_travel" | "privilege_escalation" | "data_exfiltration" | "web_application_attack" | "generic",
   "event_type": string,
   "threshold": int (optional),
   "group_by": list[string],
@@ -59,11 +59,16 @@ def parse_intent_fallback(prompt: str) -> dict:
         return {"is_valid": True, "investigation_type": "dns_tunneling", "event_type": "dns_query", "threshold": 10, "group_by": ["hostname", "destination_ip"], "time_window": "24h"}
     elif scenario == "impossible_travel":
         return {"is_valid": True, "investigation_type": "impossible_travel", "event_type": "authentication", "group_by": ["username"], "time_window": "24h"}
+    elif scenario == "privilege_escalation":
+        return {"is_valid": True, "investigation_type": "privilege_escalation", "event_type": "process_execution", "group_by": ["username", "hostname"], "time_window": "24h"}
+    elif scenario == "data_exfiltration":
+        return {"is_valid": True, "investigation_type": "data_exfiltration", "event_type": "network_connection", "threshold": 5, "group_by": ["source_ip"], "time_window": "24h"}
+    elif scenario == "web_application_attack":
+        return {"is_valid": True, "investigation_type": "web_application_attack", "event_type": "http_request", "group_by": ["source_ip", "endpoint"], "time_window": "24h"}
     
     return {"is_valid": True, "investigation_type": "generic", "event_type": "all", "group_by": ["source_ip"], "time_window": "24h"}
 
 async def parse_user_intent(prompt: str) -> dict:
-    # Always check local Gate 1 Intent Validator first for fast rejection of gibberish
     gate1 = validate_intent(prompt)
     if not gate1["valid"]:
         return {

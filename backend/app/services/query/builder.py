@@ -15,20 +15,41 @@ def build_sql_query(intent: dict, governance_policy: dict = None) -> str:
 
     limit_cap = min(100, max_limit)
 
-    # Specialized DSL translations for core investigation scenarios
+    # 1. Brute Force (T1110)
     if itype == "brute_force":
         thresh = threshold or 5
         return f"""SELECT username, source_ip, hostname, COUNT(*) as event_count FROM security_events WHERE (status = 'failed' OR action = 'login') GROUP BY username, source_ip HAVING event_count >= {thresh} ORDER BY event_count DESC LIMIT {limit_cap};""".strip()
+    
+    # 2. PowerShell Abuse (T1059.001)
     elif itype == "powershell_abuse":
         return f"""SELECT id, timestamp, username, hostname, source_ip, process, parent_process, command_line FROM security_events WHERE (event_type = 'process_execution' OR LOWER(action) LIKE '%powershell%' OR LOWER(command_line) LIKE '%powershell%') AND (LOWER(command_line) LIKE '%encodedcommand%' OR LOWER(command_line) LIKE '%-enc%' OR LOWER(parent_process) IN ('winword.exe', 'excel.exe', 'cmd.exe') OR LOWER(process) LIKE '%powershell%') ORDER BY id DESC LIMIT {limit_cap};""".strip()
+    
+    # 3. Port Scanning (T1046)
     elif itype == "port_scan":
         thresh = threshold or 10
         return f"""SELECT source_ip, destination_ip, hostname, username, COUNT(DISTINCT destination_port) as event_count FROM security_events WHERE event_type = 'network_connection' GROUP BY source_ip, destination_ip HAVING event_count >= {thresh} ORDER BY event_count DESC LIMIT {min(50, limit_cap)};""".strip()
+    
+    # 4. DNS Tunneling (T1071.004)
     elif itype == "dns_tunneling":
         thresh = threshold or 10
         return f"""SELECT hostname, username, source_ip, domain, COUNT(*) as event_count FROM security_events WHERE event_type = 'dns_query' AND (LOWER(domain) LIKE '%.exfil%' OR LOWER(domain) LIKE '%.c2%' OR LOWER(domain) LIKE '%.tunnel%' OR LENGTH(domain) > 20) GROUP BY hostname, username, source_ip, domain HAVING event_count >= {thresh} ORDER BY event_count DESC LIMIT {min(50, limit_cap)};""".strip()
+    
+    # 5. Impossible Travel (T1078)
     elif itype == "impossible_travel":
         return f"""SELECT username, source_ip, location_city, location_country, timestamp FROM security_events WHERE event_type = 'authentication' AND status = 'success' AND location_city IS NOT NULL ORDER BY username, timestamp ASC LIMIT {min(200, limit_cap)};""".strip()
+
+    # 6. Privilege Escalation (T1068 / T1078)
+    elif itype == "privilege_escalation":
+        return f"""SELECT id, timestamp, username, hostname, source_ip, process, command_line FROM security_events WHERE (LOWER(command_line) LIKE '%sudo%' OR LOWER(command_line) LIKE '%runas%' OR LOWER(command_line) LIKE '%admin%' OR LOWER(process) LIKE '%sudo%') ORDER BY id DESC LIMIT {limit_cap};""".strip()
+
+    # 7. Data Exfiltration (T1041 / T1048)
+    elif itype == "data_exfiltration":
+        thresh = threshold or 5
+        return f"""SELECT source_ip, destination_ip, hostname, username, COUNT(*) as event_count FROM security_events WHERE (event_type = 'network_connection' OR event_type = 'http_request') AND (action = 'upload' OR action = 'export' OR action = 'connect') GROUP BY source_ip, destination_ip HAVING event_count >= {thresh} ORDER BY event_count DESC LIMIT {limit_cap};""".strip()
+
+    # 8. Web Application Attack (T1190)
+    elif itype == "web_application_attack":
+        return f"""SELECT id, timestamp, source_ip, hostname, endpoint, action, status, user_agent FROM security_events WHERE (event_type = 'http_request' OR source = 'cloudflare') AND (status = 'blocked' OR LOWER(endpoint) LIKE '%select%' OR LOWER(endpoint) LIKE '%union%' OR LOWER(endpoint) LIKE '%script%') ORDER BY id DESC LIMIT {limit_cap};""".strip()
 
     # Generic Query DSL Translation
     if group_by_fields:
@@ -38,7 +59,6 @@ def build_sql_query(intent: dict, governance_policy: dict = None) -> str:
 
     query = f"SELECT {select_clause} FROM security_events"
 
-    # Where Clause
     where_conditions = []
     if event_type != "all":
         where_conditions.append(f"event_type = '{event_type}'")
@@ -46,7 +66,6 @@ def build_sql_query(intent: dict, governance_policy: dict = None) -> str:
     if where_conditions:
         query += " WHERE " + " AND ".join(where_conditions)
 
-    # Group By & Having Clause
     if group_by_fields:
         query += " GROUP BY " + ", ".join(group_by_fields)
         if threshold:

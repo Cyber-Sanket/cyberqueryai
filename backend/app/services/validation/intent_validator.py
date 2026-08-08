@@ -8,6 +8,9 @@ SECURITY_KEYWORDS = {
     "port", "scan", "ports", "sweep", "network", "connect", "connection", "ip", "host",
     "dns", "domain", "tunnel", "subdomain", "c2", "exfil", "query", "queries",
     "travel", "location", "country", "geographic", "impossible", "vpn", "sso",
+    "privilege", "escalation", "root", "sudo", "admin", "privileges", "permission",
+    "exfiltration", "data transfer", "bytes", "upload", "outbound", "export",
+    "sqli", "injection", "waf", "xss", "web attack", "exploit", "payload",
     "threat", "alert", "incident", "attack", "suspicious", "anomalous", "event", "logs"
 }
 
@@ -86,6 +89,12 @@ def validate_intent(prompt: str, governance_policy: dict = None) -> Dict[str, An
         scenario = "dns_tunneling"
     elif any(k in p_clean for k in ["travel", "location", "country", "impossible"]):
         scenario = "impossible_travel"
+    elif any(k in p_clean for k in ["privilege", "escalation", "sudo", "admin", "root"]):
+        scenario = "privilege_escalation"
+    elif any(k in p_clean for k in ["exfiltration", "data transfer", "upload", "outbound"]):
+        scenario = "data_exfiltration"
+    elif any(k in p_clean for k in ["sqli", "injection", "waf", "xss", "web attack", "exploit"]):
+        scenario = "web_application_attack"
     else:
         scenario = "generic_search"
 

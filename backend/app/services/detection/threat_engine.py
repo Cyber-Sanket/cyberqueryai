@@ -7,7 +7,7 @@ from app.database.models import SecurityEventModel, AlertModel, IncidentModel
 class ThreatEngine:
     def analyze_results(self, intent: Dict[str, Any], results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Analyzes returned query results to generate structured threat breakdown.
+        Analyzes returned query results to generate structured threat breakdown across all 8 DSL scenarios.
         """
         inv_type = intent.get("investigation_type", "generic")
         row_count = len(results)
@@ -23,20 +23,17 @@ class ThreatEngine:
                 "recommended_actions": ["Maintain standard continuous monitoring."]
             }
 
-        # Analyze evidence rows
-        failed_logins = [r for r in results if str(r.get("status", "")).lower() == "failed"]
-        powershell_events = [r for r in results if "powershell" in str(r.get("action", "")).lower() or "powershell" in str(r.get("event_type", "")).lower()]
-
-        if len(failed_logins) >= 5 or inv_type == "brute_force":
-            source_ips = list(set([r.get("source_ip") for r in failed_logins if r.get("source_ip")]))
-            users = list(set([r.get("username") for r in failed_logins if r.get("username")]))
+        # Scenario 1: Brute Force
+        if inv_type == "brute_force" or any(r.get("status") == "failed" for r in results):
+            source_ips = list(set([str(r.get("source_ip")) for r in results if r.get("source_ip")]))
+            users = list(set([str(r.get("username")) for r in results if r.get("username")]))
             return {
                 "risk_level": "HIGH",
                 "risk_score": 85,
                 "confidence": "High",
                 "mitre_technique": "T1110",
-                "mitre_evidence": f"Identified {len(failed_logins)} failed login attempts from IP(s) {', '.join(source_ips[:3])} targeting user(s) {', '.join(users[:3])}.",
-                "explanation": f"Pattern matches MITRE ATT&CK T1110 (Brute Force). High frequency of failed authentications detected.",
+                "mitre_evidence": f"Identified failed login attempts from IP(s) {', '.join(source_ips[:3])} targeting user(s) {', '.join(users[:3])}.",
+                "explanation": "Pattern matches MITRE ATT&CK T1110 (Brute Force). High frequency of failed authentications detected.",
                 "recommended_actions": [
                     f"Block source IP address(es): {', '.join(source_ips[:3])}",
                     f"Enforce MFA and reset password for account: {users[0] if users else 'affected users'}",
@@ -44,13 +41,14 @@ class ThreatEngine:
                 ]
             }
 
-        if powershell_events or inv_type == "powershell":
+        # Scenario 2: PowerShell Abuse
+        if inv_type == "powershell_abuse":
             return {
                 "risk_level": "HIGH",
                 "risk_score": 80,
                 "confidence": "High",
                 "mitre_technique": "T1059.001",
-                "mitre_evidence": f"Detected {len(powershell_events)} suspicious PowerShell script execution events.",
+                "mitre_evidence": f"Detected {row_count} suspicious PowerShell process execution events.",
                 "explanation": "Pattern matches MITRE ATT&CK T1059.001 (Command and Scripting Interpreter: PowerShell).",
                 "recommended_actions": [
                     "Isolate target host workstation.",
@@ -59,6 +57,7 @@ class ThreatEngine:
                 ]
             }
 
+        # Scenario 3: Port Scan
         if inv_type == "port_scan":
             return {
                 "risk_level": "HIGH",
@@ -73,7 +72,8 @@ class ThreatEngine:
                 ]
             }
 
-        if inv_type == "dns":
+        # Scenario 4: DNS Tunneling
+        if inv_type == "dns_tunneling":
             return {
                 "risk_level": "MEDIUM",
                 "risk_score": 60,
@@ -84,6 +84,66 @@ class ThreatEngine:
                 "recommended_actions": [
                     "Sinkhole suspicious DNS domain.",
                     "Inspect endpoint process initiating DNS queries."
+                ]
+            }
+
+        # Scenario 5: Impossible Travel
+        if inv_type == "impossible_travel":
+            return {
+                "risk_level": "HIGH",
+                "risk_score": 80,
+                "confidence": "High",
+                "mitre_technique": "T1078",
+                "mitre_evidence": f"Detected geographically disparate authentications across {row_count} sessions.",
+                "explanation": "Pattern matches MITRE ATT&CK T1078 (Valid Accounts: Impossible Travel).",
+                "recommended_actions": [
+                    "Revoke active SSO sessions for affected account.",
+                    "Require MFA re-authentication."
+                ]
+            }
+
+        # Scenario 6: Privilege Escalation
+        if inv_type == "privilege_escalation":
+            return {
+                "risk_level": "HIGH",
+                "risk_score": 85,
+                "confidence": "High",
+                "mitre_technique": "T1068",
+                "mitre_evidence": f"Detected {row_count} administrative privilege escalation commands.",
+                "explanation": "Pattern matches MITRE ATT&CK T1068 (Exploitation for Privilege Escalation).",
+                "recommended_actions": [
+                    "Audit user group assignments and sudoers file.",
+                    "Verify authorization for elevated process executions."
+                ]
+            }
+
+        # Scenario 7: Data Exfiltration
+        if inv_type == "data_exfiltration":
+            return {
+                "risk_level": "CRITICAL",
+                "risk_score": 90,
+                "confidence": "High",
+                "mitre_technique": "T1041",
+                "mitre_evidence": f"Detected {row_count} high-volume outbound data transfer events.",
+                "explanation": "Pattern matches MITRE ATT&CK T1041 (Exfiltration Over C2 Channel).",
+                "recommended_actions": [
+                    "Block outbound destination IP at network perimeter.",
+                    "Initiate data loss prevention (DLP) triage."
+                ]
+            }
+
+        # Scenario 8: Web Application Attack
+        if inv_type == "web_application_attack":
+            return {
+                "risk_level": "CRITICAL",
+                "risk_score": 92,
+                "confidence": "High",
+                "mitre_technique": "T1190",
+                "mitre_evidence": f"Detected {row_count} WAF blocked web exploitation events (SQLi/XSS).",
+                "explanation": "Pattern matches MITRE ATT&CK T1190 (Exploit Public-Facing Application).",
+                "recommended_actions": [
+                    "Verify WAF blocking rules are active on edge CDN.",
+                    "Inspect web server logs for bypass attempts."
                 ]
             }
 
@@ -105,15 +165,7 @@ def analyze_threat(intent: Dict[str, Any], results: List[Dict[str, Any]]) -> Dic
     return engine.analyze_results(intent, results)
 
 def evaluate_event_rules(event: SecurityEventModel, db: Session) -> Optional[AlertModel]:
-    """
-    Real Detection Engine Rules Executor.
-    Evaluates incoming event against SQLite database to detect suspicious security patterns:
-    A. Brute Force (T1110): >= 5 failed logins from same source_ip within 10 minutes
-    B. Suspicious PowerShell (T1059.001): Obfuscated/encoded command flags
-    C. Port Scanning (T1046): Connecting to >= 10 ports
-    D. Suspicious DNS (T1071.004): Querying C2/tunneling domain names
-    E. Impossible Travel (T1078): Same user logging in from different subnets
-    """
+    """Real Detection Engine Rules Executor."""
     if not event:
         return None
 
@@ -126,7 +178,6 @@ def evaluate_event_rules(event: SecurityEventModel, db: Session) -> Optional[Ale
         ).count()
 
         if failed_count >= 5:
-            # Check if alert already exists to prevent duplication
             existing_alert = db.query(AlertModel).filter(
                 AlertModel.source_ip == event.source_ip,
                 AlertModel.mitre_technique == "T1110",
@@ -150,7 +201,6 @@ def evaluate_event_rules(event: SecurityEventModel, db: Session) -> Optional[Ale
                 )
                 db.add(alert)
 
-                # Create corresponding Incident
                 incident_id = f"inc-{uuid.uuid4().hex[:8]}"
                 incident = IncidentModel(
                     id=incident_id,
@@ -168,7 +218,7 @@ def evaluate_event_rules(event: SecurityEventModel, db: Session) -> Optional[Ale
                 return alert
 
     # RULE B: Suspicious PowerShell (T1059.001)
-    raw_str = str(event.raw_data or "").lower() + str(event.action or "").lower() + str(event.endpoint or "").lower()
+    raw_str = str(event.raw_data or "").lower() + str(event.action or "").lower() + str(event.endpoint or "").lower() + str(event.command_line or "").lower()
     if "powershell" in raw_str and any(flag in raw_str for flag in ["-enc", "-encodedcommand", "nop", "bypass", "downloadstring"]):
         alert_id = f"alt-{uuid.uuid4().hex[:8]}"
         now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -223,7 +273,7 @@ def evaluate_event_rules(event: SecurityEventModel, db: Session) -> Optional[Ale
 
     # RULE D: Suspicious DNS (T1071.004)
     if event.event_type == "dns_query":
-        endpoint_str = str(event.endpoint or "").lower()
+        endpoint_str = str(event.endpoint or "").lower() + str(event.domain or "").lower()
         if any(dom in endpoint_str for dom in ["tunnel.com", "c2.net", "txt-dns", "ngrok"]):
             alert_id = f"alt-{uuid.uuid4().hex[:8]}"
             now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -234,10 +284,10 @@ def evaluate_event_rules(event: SecurityEventModel, db: Session) -> Optional[Ale
                 severity="MEDIUM",
                 source_ip=event.source_ip or "127.0.0.1",
                 mitre_technique="T1071.004",
-                description=f"DNS query to known suspicious domain '{event.endpoint}' from host '{event.hostname or 'Endpoint'}'.",
+                description=f"DNS query to known suspicious domain '{event.domain or event.endpoint}' from host '{event.hostname or 'Endpoint'}'.",
                 status="Open",
                 target_user=event.username or "system",
-                evidence={"domain": event.endpoint}
+                evidence={"domain": event.domain or event.endpoint}
             )
             db.add(alert)
             db.commit()
