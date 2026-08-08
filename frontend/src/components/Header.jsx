@@ -1,7 +1,30 @@
-import React from 'react';
-import { ShieldCheck, Database, UserCheck, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ShieldCheck, Database, UserCheck, Sparkles, Wifi, WifiOff } from 'lucide-react';
+import { api } from '../services/api';
 
 export const Header = () => {
+  const [siemStatus, setSiemStatus] = useState('checking'); // 'connected', 'disconnected', 'checking'
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await api.getHealth();
+        if (res && res.status === 'ok' && res.database === 'connected') {
+          setSiemStatus('connected');
+        } else {
+          setSiemStatus('disconnected');
+        }
+      } catch (err) {
+        console.warn('SIEM Backend Health check failed:', err);
+        setSiemStatus('disconnected');
+      }
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 15000); // Polling every 15s
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
       <div className="flex items-center space-x-3">
@@ -22,12 +45,20 @@ export const Header = () => {
       </div>
 
       <div className="flex items-center space-x-4">
-        {/* Connection Status Badge */}
-        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <Database className="w-3.5 h-3.5" />
-          <span>SIEM Connected (Read-Only)</span>
-        </div>
+        {/* Connection Status Badge dynamically derived from /api/health */}
+        {siemStatus === 'connected' ? (
+          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <Database className="w-3.5 h-3.5" />
+            <span>SIEM Connected</span>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-medium shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+            <WifiOff className="w-3.5 h-3.5" />
+            <span>SIEM Disconnected</span>
+          </div>
+        )}
 
         {/* Validator Status */}
         <div className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-medium">

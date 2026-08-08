@@ -47,6 +47,17 @@ class IncidentModel(Base):
     mitre_technique = Column(String, index=True)
     summary = Column(String)
 
+class MonitoredAssetModel(Base):
+    __tablename__ = "monitored_assets"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String)
+    domain = Column(String, index=True)
+    type = Column(String)
+    status = Column(String, default="monitoring")
+    environment = Column(String)
+    created_at = Column(String)
+
 class InvestigationModel(Base):
     __tablename__ = "investigations"
 
