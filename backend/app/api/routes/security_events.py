@@ -73,6 +73,8 @@ def ingest_security_event(
         effective_ip = client_ip or "127.0.0.1"
 
     asset_source = event_in.source or "login-portal"
+    if asset_source in ["hexnova", "hexnova-login", "login_portal", "hexnova.space"]:
+        asset_source = "login-portal"
 
     db_event = SecurityEventModel(
         timestamp=now_str,
@@ -137,7 +139,10 @@ def get_security_events(
     """
     query = db.query(SecurityEventModel)
     if source and source != "all":
-        query = query.filter(SecurityEventModel.source == source)
+        if source in ["login-portal", "hexnova-login", "login_portal"]:
+            query = query.filter(SecurityEventModel.source.in_(["login-portal", "hexnova-login", "login_portal"]))
+        else:
+            query = query.filter(SecurityEventModel.source == source)
     if event_type:
         query = query.filter(SecurityEventModel.event_type == event_type)
     if source_ip:

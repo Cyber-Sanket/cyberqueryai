@@ -68,9 +68,26 @@ def get_asset_by_id(asset_id: str, db: Session = Depends(get_db)):
     if not asset:
         asset = get_or_seed_login_portal_asset(db)
 
-    total_events = db.query(SecurityEventModel).count()
-    auth_events = db.query(SecurityEventModel).filter(SecurityEventModel.event_type == "authentication").count()
-    failed_events = db.query(SecurityEventModel).filter(SecurityEventModel.status == "failed").count()
+    valid_sources = ["login-portal", "hexnova-login", "login_portal"] if asset_id in ["login-portal", "hexnova-login", "login_portal"] else [asset_id]
+
+    total_events = db.query(SecurityEventModel).filter(SecurityEventModel.source.in_(valid_sources)).count()
+    if total_events == 0:
+        total_events = db.query(SecurityEventModel).count()
+
+    auth_events = db.query(SecurityEventModel).filter(
+        SecurityEventModel.event_type == "authentication",
+        SecurityEventModel.source.in_(valid_sources)
+    ).count()
+    if auth_events == 0:
+        auth_events = db.query(SecurityEventModel).filter(SecurityEventModel.event_type == "authentication").count()
+
+    failed_events = db.query(SecurityEventModel).filter(
+        SecurityEventModel.status == "failed",
+        SecurityEventModel.source.in_(valid_sources)
+    ).count()
+    if failed_events == 0:
+        failed_events = db.query(SecurityEventModel).filter(SecurityEventModel.status == "failed").count()
+
     total_alerts = db.query(AlertModel).count()
 
     return {
@@ -95,7 +112,14 @@ def get_asset_events(asset_id: str, limit: int = 15, db: Session = Depends(get_d
     GET /api/assets/{asset_id}/events
     Returns recent security events for Login Portal from SQLite DB.
     """
-    events = db.query(SecurityEventModel).order_by(SecurityEventModel.id.desc()).limit(limit).all()
+    valid_sources = ["login-portal", "hexnova-login", "login_portal"] if asset_id in ["login-portal", "hexnova-login", "login_portal"] else [asset_id]
+    events = db.query(SecurityEventModel).filter(
+        SecurityEventModel.source.in_(valid_sources)
+    ).order_by(SecurityEventModel.id.desc()).limit(limit).all()
+
+    if not events:
+        events = db.query(SecurityEventModel).order_by(SecurityEventModel.id.desc()).limit(limit).all()
+
     return [
         {
             "id": str(e.id),
@@ -132,5 +156,5 @@ def get_asset_alerts(asset_id: str, db: Session = Depends(get_db)):
             "created_at": a.created_at,
             "description": a.description
         }
-        for a in alerts
+        for e in alerts
     ]
