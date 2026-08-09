@@ -64,8 +64,8 @@ export const MitreMatrix = () => {
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>MITRE ATT&CK Mapping Workbench</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+            <span>MITRE ATT&CK Framework Mapping</span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
               v14 Enterprise Matrix
             </span>
           </h2>
@@ -106,7 +106,7 @@ export const MitreMatrix = () => {
               {tech.description}
             </p>
 
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-indigo-600 font-medium">
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-indigo-600 font-semibold">
               <span>View Rule Details</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </div>

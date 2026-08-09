@@ -29,7 +29,7 @@ export const InvestigationHistory = () => {
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <span>Audit Trail & Investigation History</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
               {history.length} Saved Records
             </span>
           </h2>
@@ -51,7 +51,8 @@ export const InvestigationHistory = () => {
               <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase text-[10px] tracking-wider">
                 <tr>
                   <th className="px-4 py-3 font-semibold">ID</th>
-                  <th className="px-4 py-3 font-semibold">Investigation Question</th>
+                  <th className="px-4 py-3 font-semibold font-sans">Analyst</th>
+                  <th className="px-4 py-3 font-semibold font-sans">Investigation Question</th>
                   <th className="px-4 py-3 font-semibold">Risk Level</th>
                   <th className="px-4 py-3 font-semibold">MITRE Technique</th>
                   <th className="px-4 py-3 font-semibold text-right">Rows</th>
@@ -63,7 +64,8 @@ export const InvestigationHistory = () => {
                 {history.map((inv) => (
                   <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-4 py-3 font-bold text-indigo-600">{inv.id}</td>
-                    <td className="px-4 py-3 font-sans font-medium text-slate-900 max-w-md truncate">
+                    <td className="px-4 py-3 font-sans font-semibold text-slate-700">Analyst</td>
+                    <td className="px-4 py-3 font-sans font-semibold text-slate-900 max-w-md truncate">
                       {inv.question}
                     </td>
                     <td className="px-4 py-3">

@@ -1,10 +1,13 @@
 import React from 'react';
 
-export const GlassCard = ({ children, className = '', hover = false }) => {
+export const GlassCard = ({ children, className = '', hover = false, onClick }) => {
   return (
-    <div className={`bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm ${
-      hover ? 'hover:shadow-md hover:border-indigo-200 transition-all duration-200' : ''
-    } ${className}`}>
+    <div
+      onClick={onClick}
+      className={`bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs ${
+        hover ? 'hover:shadow-md hover:border-indigo-200 hover:-translate-y-0.5 transition-all duration-200' : ''
+      } ${className}`}
+    >
       {children}
     </div>
   );

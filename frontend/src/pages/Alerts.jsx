@@ -42,23 +42,23 @@ export const Alerts = () => {
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <span>Active Security Alerts</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-medium">
-              {alerts.length} Incident Alerts
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold">
+              {alerts.length} Active Incidents
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Real-time SIEM alerts mapped to MITRE ATT&CK techniques with severity classification.
+            Real-time SIEM alerts mapped to MITRE ATT&CK techniques with soft severity indicators.
           </p>
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+        <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200 text-xs">
           {['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(sev => (
             <button
               key={sev}
               onClick={() => setFilter(sev)}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-                filter === sev ? 'bg-white text-indigo-600 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                filter === sev ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               {sev}
@@ -78,14 +78,16 @@ export const Alerts = () => {
             <GlassCard key={alert.id} hover className="space-y-3">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div className="flex items-center space-x-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    alert.severity === 'CRITICAL' || alert.severity === 'HIGH' 
-                      ? 'bg-rose-100 text-rose-800 border border-rose-200' 
+                  <span className={`px-3 py-0.5 rounded-full text-xs font-bold ${
+                    alert.severity === 'CRITICAL' 
+                      ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                      : alert.severity === 'HIGH'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200' 
                       : alert.severity === 'MEDIUM' 
-                      ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      ? 'bg-amber-50 text-amber-800 border border-amber-200' 
+                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                   }`}>
-                    🔴 {alert.severity}
+                    ● {alert.severity}
                   </span>
                   <h3 className="text-base font-bold text-slate-900">{alert.title}</h3>
                 </div>
@@ -104,7 +106,7 @@ export const Alerts = () => {
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs font-mono text-slate-500">
                 <div className="flex items-center space-x-4">
-                  <div>Asset: <strong className="text-slate-800">Login Portal</strong></div>
+                  <div>Asset: <strong className="text-slate-800 font-semibold">Login Portal</strong></div>
                   <div>Target User: <strong className="text-slate-800">{alert.target_user || 'demo_admin'}</strong></div>
                   <div>Source IP: <strong className="text-slate-800">{alert.source_ip || '127.0.0.1'}</strong></div>
                 </div>
@@ -114,7 +116,7 @@ export const Alerts = () => {
                   className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs"
                 >
                   <Search className="w-3.5 h-3.5" />
-                  <span>[ Investigate ]</span>
+                  <span>Investigate →</span>
                 </button>
               </div>
             </GlassCard>

@@ -14,7 +14,7 @@ import { Login } from './pages/Login';
 
 function AppLayout({ children }) {
   return (
-    <div className="min-h-screen bg-[#F5F7FB] flex flex-col font-sans antialiased text-slate-900">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans antialiased text-slate-900">
       <Header />
       <div className="flex flex-1">
         <Navigation />
@@ -32,7 +32,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         
-        {/* HexNova Monitored Target Application Route */}
+        {/* Monitored Target Application Route */}
         <Route
           path="/app"
           element={

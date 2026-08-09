@@ -5,16 +5,15 @@ import {
   Search, 
   AlertOctagon, 
   CheckCircle2, 
-  Users, 
   Globe, 
   ArrowUpRight, 
-  Clock,
   Sparkles,
   Filter,
   X,
   Eye,
-  Server,
-  Lock
+  Lock,
+  ArrowRight,
+  Shield
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GlassCard } from '../components/GlassCard';
@@ -34,16 +33,18 @@ export const Dashboard = () => {
   const [summary, setSummary] = useState(null);
   const [assets, setAssets] = useState([]);
   const [selectedAsset, setSelectedAsset] = useState('all'); // 'all' or 'login-portal'
+  const [latestEvents, setLatestEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Monitored Asset Activity Drawer / Modal State
-  const [activeAssetModal, setActiveAssetModal] = useState(null); // asset object or null
+  // Monitored Asset Activity Modal State
+  const [activeAssetModal, setActiveAssetModal] = useState(null);
   const [assetActivityData, setAssetActivityData] = useState(null);
   const [assetEventsList, setAssetEventsList] = useState([]);
 
   useEffect(() => {
     fetchDashboardData(selectedAsset);
     fetchAssets();
+    fetchLatestEvents();
   }, [selectedAsset]);
 
   const fetchDashboardData = async (assetFilter) => {
@@ -64,6 +65,15 @@ export const Dashboard = () => {
       setAssets(data);
     } catch (err) {
       console.error('Failed to load assets:', err);
+    }
+  };
+
+  const fetchLatestEvents = async () => {
+    try {
+      const events = await api.getLatestEvents(10);
+      setLatestEvents(events);
+    } catch (err) {
+      console.error('Failed to load latest events:', err);
     }
   };
 
@@ -88,7 +98,7 @@ export const Dashboard = () => {
     return (
       <div className="py-20 text-center space-y-3">
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="text-sm font-medium text-slate-500">Loading SOC Telemetry Overview...</p>
+        <p className="text-xs font-semibold text-slate-500">Loading SOC Telemetry Overview...</p>
       </div>
     );
   }
@@ -143,29 +153,30 @@ export const Dashboard = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       
-      {/* Top Header & Asset Filter Selector */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+      {/* Top Banner */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <span>SOC Investigation Dashboard</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
-              🟢 Live Telemetry
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Live Telemetry
             </span>
           </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Real-time security telemetry monitoring & natural-language AI query workbench.
+          <p className="text-xs text-slate-500 mt-1">
+            Real-time security telemetry monitoring and AI-assisted investigation.
           </p>
         </div>
 
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           {/* Asset Filter Selector */}
-          <div className="flex items-center space-x-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-            <Filter className="w-3.5 h-3.5 text-slate-500 ml-1.5" />
+          <div className="flex items-center space-x-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+            <Filter className="w-3.5 h-3.5 text-slate-400 ml-1" />
             <span className="text-xs font-semibold text-slate-500">Asset:</span>
             <select
               value={selectedAsset}
               onChange={(e) => setSelectedAsset(e.target.value)}
-              className="bg-white border border-slate-300 text-slate-900 font-semibold text-xs rounded-xl px-3 py-1.5 outline-none cursor-pointer"
+              className="bg-white border border-slate-200 text-slate-900 font-semibold text-xs rounded-lg px-2.5 py-1 outline-none cursor-pointer"
             >
               <option value="all">All Assets</option>
               <option value="login-portal">Login Portal (login-portal)</option>
@@ -174,7 +185,7 @@ export const Dashboard = () => {
 
           <Link
             to="/investigate"
-            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xs transition-all flex items-center space-x-2 shrink-0 cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-2 shrink-0 cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
             <span>AI Investigation</span>
@@ -182,33 +193,33 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Metric Cards Grid */}
+      {/* Summary Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card, idx) => {
           const Icon = card.icon;
           return (
             <GlassCard key={idx} hover className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{card.title}</span>
-                <div className={`p-2.5 rounded-xl border ${card.bg} ${card.color}`}>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{card.title}</span>
+                <div className={`p-2 rounded-xl border ${card.bg} ${card.color}`}>
                   <Icon className="w-4 h-4" />
                 </div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-slate-900 tracking-tight">{card.value}</div>
-                <div className="text-xs text-slate-500 mt-1">{card.change}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{card.change}</div>
               </div>
             </GlassCard>
           );
         })}
       </div>
 
-      {/* Monitored Assets Card Section */}
+      {/* Monitored Asset Card */}
       <GlassCard className="space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center space-x-2">
             <Globe className="w-4 h-4 text-indigo-600" />
-            <h3 className="text-base font-bold text-slate-900">Monitored Assets</h3>
+            <h3 className="text-sm font-bold text-slate-900">Monitored Assets</h3>
           </div>
           <span className="text-xs font-mono text-slate-500">1 Web Application Asset</span>
         </div>
@@ -219,12 +230,12 @@ export const Dashboard = () => {
           <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-indigo-300 transition-all">
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-lg">
                   🔐
                 </div>
                 <div>
                   <div className="font-bold text-sm text-slate-900">Login Portal</div>
-                  <div className="text-xs font-mono text-slate-500">login-portal</div>
+                  <div className="text-xs font-mono text-slate-500">Target: login-portal</div>
                 </div>
               </div>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold flex items-center gap-1">
@@ -248,17 +259,71 @@ export const Dashboard = () => {
               </div>
             </div>
 
-            <div className="pt-1 flex items-center justify-between">
+            <div className="pt-1">
               <button
                 onClick={() => handleOpenAssetActivity(loginPortalAsset)}
                 className="w-full py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>View Activity</span>
+                <span>View Activity →</span>
               </button>
             </div>
           </div>
 
+        </div>
+      </GlassCard>
+
+      {/* Live Login Portal Telemetry Stream Table */}
+      <GlassCard className="space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center space-x-2">
+            <Activity className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-sm font-bold text-slate-900">Live Login Portal Telemetry</h3>
+          </div>
+          <span className="text-xs text-slate-500 font-mono">POST /api/security-events</span>
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="w-full text-left text-xs font-mono">
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase text-[10px] tracking-wider">
+              <tr>
+                <th className="px-3 py-2.5">Username</th>
+                <th className="px-3 py-2.5">Source IP</th>
+                <th className="px-3 py-2.5">Event</th>
+                <th className="px-3 py-2.5">Status</th>
+                <th className="px-3 py-2.5">Risk</th>
+                <th className="px-3 py-2.5 text-right">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              {latestEvents.map((ev) => (
+                <tr key={ev.id} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="px-3 py-2 font-bold text-slate-900">{ev.username || 'demo_admin'}</td>
+                  <td className="px-3 py-2 text-indigo-600">{ev.source_ip || '127.0.0.1'}</td>
+                  <td className="px-3 py-2 text-slate-600">{ev.event_type} / {ev.action}</td>
+                  <td className="px-3 py-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      ev.status === 'failed' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {ev.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      ev.severity === 'HIGH' || ev.severity === 'CRITICAL'
+                        ? 'bg-rose-100 text-rose-700'
+                        : ev.severity === 'MEDIUM'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {ev.severity || 'LOW'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-right text-slate-400 text-[11px]">{ev.timestamp}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </GlassCard>
 
@@ -269,7 +334,7 @@ export const Dashboard = () => {
         <GlassCard className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Security Telemetry Volume ({selectedAsset === 'all' ? 'All Assets' : 'Login Portal'})</h3>
+              <h3 className="text-sm font-bold text-slate-900">Security Telemetry Volume</h3>
               <p className="text-xs text-slate-500">Distribution of ingested log event types</p>
             </div>
             <span className="text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 font-mono">
@@ -306,7 +371,7 @@ export const Dashboard = () => {
         {/* Active Alerts List with Investigate Button */}
         <GlassCard className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-base font-bold text-slate-900">Active Alerts ({selectedAsset === 'all' ? 'All' : 'Login Portal'})</h3>
+            <h3 className="text-sm font-bold text-slate-900">Active Alerts</h3>
             <Link to="/alerts" className="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1">
               <span>View All</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -348,7 +413,7 @@ export const Dashboard = () => {
 
       {/* Login Portal Asset Activity Modal */}
       {activeAssetModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-2xl w-full p-6 space-y-6 shadow-xl animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
@@ -434,7 +499,7 @@ export const Dashboard = () => {
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setActiveAssetModal(null)}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs cursor-pointer"
               >
                 Close
               </button>
