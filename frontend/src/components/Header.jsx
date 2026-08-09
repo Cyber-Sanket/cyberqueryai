@@ -26,22 +26,22 @@ export const Header = () => {
   }, []);
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+    <header className="h-16 bg-[#0B1120] border-b border-[#243047] px-6 flex items-center justify-between sticky top-0 z-30 shadow-md">
       {/* Brand Header */}
       <div className="flex items-center space-x-3">
-        <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
+        <div className="w-9 h-9 rounded-xl bg-indigo-950/60 border border-indigo-700/50 flex items-center justify-center text-indigo-400">
           <Sparkles className="w-5 h-5" />
         </div>
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">
+            <h1 className="text-base font-bold text-slate-100 tracking-tight">
               CyberQuery AI
             </h1>
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-800/80">
               Enterprise SOC
             </span>
           </div>
-          <p className="text-xs text-slate-500">AI-Powered SOC Investigation Assistant</p>
+          <p className="text-xs text-slate-400">AI-Powered SOC Investigation Assistant</p>
         </div>
       </div>
 
@@ -49,33 +49,33 @@ export const Header = () => {
       <div className="flex items-center space-x-3">
         {/* SIEM Connected Status Badge */}
         {siemStatus === 'connected' ? (
-          <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-950/40 text-emerald-400 border border-emerald-800/60 text-xs font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <Database className="w-3.5 h-3.5" />
             <span>SIEM Connected</span>
           </div>
         ) : (
-          <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-medium shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+          <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-rose-950/40 text-rose-400 border border-rose-800/60 text-xs font-medium">
+            <span className="w-2 h-2 rounded-full bg-rose-400"></span>
             <WifiOff className="w-3.5 h-3.5" />
             <span>SIEM Disconnected</span>
           </div>
         )}
 
         {/* Live Telemetry Pill */}
-        <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-medium">
-          <Activity className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
+        <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full bg-sky-950/40 text-sky-400 border border-sky-800/60 text-xs font-medium">
+          <Activity className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
           <span>Live Telemetry</span>
         </div>
 
         {/* Analyst Profile */}
-        <div className="flex items-center space-x-2.5 border-l border-slate-200 pl-3">
-          <div className="w-8 h-8 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-xs">
+        <div className="flex items-center space-x-2.5 border-l border-[#243047] pl-3">
+          <div className="w-8 h-8 rounded-full bg-[#182235] border border-[#243047] flex items-center justify-center text-indigo-300 font-bold text-xs">
             SA
           </div>
           <div className="hidden md:block">
-            <div className="font-semibold text-xs text-slate-900">Analyst</div>
-            <div className="text-[10px] text-slate-500">Tier-2 Security Analyst</div>
+            <div className="font-semibold text-xs text-slate-200">Analyst</div>
+            <div className="text-[10px] text-slate-400">Tier-2 Security Analyst</div>
           </div>
         </div>
       </div>

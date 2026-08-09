@@ -28,7 +28,7 @@ export const MitreMatrix = () => {
     },
     {
       id: "T1046",
-      name: "Network Service Discovery",
+      name: "Network Service Scanning",
       tactic: "Discovery",
       description: "Adversaries may attempt to get a listing of services running on remote hosts.",
       detection: "Monitor network firewall logs for single IPs initiating connections to multiple distinct ports in short time windows.",
@@ -61,52 +61,52 @@ export const MitreMatrix = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Top Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-[#151E2E] p-6 rounded-2xl border border-[#243047] shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>MITRE ATT&CK Framework Mapping</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
-              v14 Enterprise Matrix
+          <h2 className="text-xl font-bold text-slate-100 tracking-tight flex items-center gap-2 font-mono-soc">
+            <span>MITRE ATT&CK FRAMEWORK MAPPING</span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-800/80 font-bold">
+              v14 ENTERPRISE MATRIX
             </span>
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             Automated correlation between natural-language SIEM queries, evidence logs, and MITRE ATT&CK techniques.
           </p>
         </div>
       </div>
 
       {/* Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 font-mono-soc">
         {techniques.map(tech => (
           <GlassCard 
             key={tech.id} 
             hover 
             className={`space-y-3 cursor-pointer transition-all ${
-              selectedTechnique?.id === tech.id ? 'border-indigo-500 ring-2 ring-indigo-100 bg-indigo-50/20' : ''
+              selectedTechnique?.id === tech.id ? 'border-indigo-500 ring-1 ring-indigo-500 bg-[#182235]' : ''
             }`}
             onClick={() => setSelectedTechnique(tech)}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-indigo-950/80 text-indigo-300 border border-indigo-800/80">
                 {tech.id}
               </span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                tech.risk === 'HIGH' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                tech.risk === 'HIGH' ? 'bg-rose-950/80 text-rose-400 border border-rose-800/80' : 'bg-amber-950/80 text-amber-400 border border-amber-800/80'
               }`}>
                 {tech.risk} RISK
               </span>
             </div>
 
             <div>
-              <h3 className="text-base font-bold text-slate-900">{tech.name}</h3>
-              <p className="text-xs text-slate-500 font-mono mt-0.5">Tactic: {tech.tactic}</p>
+              <h3 className="text-base font-bold text-slate-100 font-sans">{tech.name}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Tactic: {tech.tactic}</p>
             </div>
 
-            <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+            <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed font-sans">
               {tech.description}
             </p>
 
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-indigo-600 font-semibold">
+            <div className="pt-2 border-t border-[#243047] flex items-center justify-between text-[11px] text-sky-400 font-bold">
               <span>View Rule Details</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </div>
@@ -116,30 +116,30 @@ export const MitreMatrix = () => {
 
       {/* Detail Inspector Card */}
       {selectedTechnique && (
-        <GlassCard className="border-indigo-200 bg-white space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center space-x-3">
-              <span className="text-sm font-mono font-bold px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+        <GlassCard className="border-indigo-500/50 bg-[#151E2E] space-y-4">
+          <div className="flex items-center justify-between border-b border-[#243047] pb-3">
+            <div className="flex items-center space-x-3 font-mono-soc">
+              <span className="text-sm font-bold px-3 py-1 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-800/80">
                 {selectedTechnique.id}
               </span>
-              <h3 className="text-lg font-bold text-slate-900">{selectedTechnique.name}</h3>
+              <h3 className="text-lg font-bold text-slate-100 font-sans">{selectedTechnique.name}</h3>
             </div>
-            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#0B1120] text-slate-300 border border-[#243047] font-mono-soc">
               Confidence: {selectedTechnique.confidence}
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed">
             <div className="space-y-2">
-              <div className="font-semibold text-slate-800 uppercase tracking-wider text-[10px]">Technique Overview:</div>
-              <p className="text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+              <div className="font-semibold text-slate-300 uppercase tracking-wider text-[10px] font-mono-soc">Technique Overview:</div>
+              <p className="text-slate-300 bg-[#0B1120] p-3.5 rounded-xl border border-[#243047] font-sans">
                 {selectedTechnique.description}
               </p>
             </div>
 
             <div className="space-y-2">
-              <div className="font-semibold text-slate-800 uppercase tracking-wider text-[10px]">Detection Guidance:</div>
-              <p className="text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+              <div className="font-semibold text-slate-300 uppercase tracking-wider text-[10px] font-mono-soc">Detection Guidance:</div>
+              <p className="text-slate-300 bg-[#0B1120] p-3.5 rounded-xl border border-[#243047] font-sans">
                 {selectedTechnique.detection}
               </p>
             </div>

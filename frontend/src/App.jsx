@@ -14,7 +14,7 @@ import { Login } from './pages/Login';
 
 function AppLayout({ children }) {
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans antialiased text-slate-900">
+    <div className="min-h-screen bg-[#0B1120] flex flex-col font-sans antialiased text-slate-100">
       <Header />
       <div className="flex flex-1">
         <Navigation />
