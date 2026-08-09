@@ -12,8 +12,8 @@ from app.api.routes.assets import router as assets_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="CyberQuery AI Engine & HexNova Integration",
-    description="SOC AI Investigation Platform & Monitored Asset Telemetry API",
+    title="CyberQuery AI Engine & Login Portal Integration",
+    description="SOC AI Investigation Platform & Login Portal Security Telemetry API",
     version="1.0.0"
 )
 
@@ -49,6 +49,6 @@ def health_check():
         "status": "online",
         "app": "CyberQuery AI SOC Engine",
         "siem_status": "CONNECTED",
-        "monitored_asset": "hexnova.space",
+        "monitored_asset": "login-portal",
         "validator_mode": "Two-Gate Governance & Query Safety Gate Active"
     }

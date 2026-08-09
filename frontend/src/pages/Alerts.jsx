@@ -25,7 +25,7 @@ export const Alerts = () => {
   }, []);
 
   const handleInvestigateAlert = (alert) => {
-    const prompt = `Investigate suspicious ${alert.title} for user '${alert.target_user || 'demo_admin'}' on asset 'hexnova.space' from IP ${alert.source_ip || '192.168.56.101'}`;
+    const prompt = `Investigate suspicious ${alert.title} for user '${alert.target_user || 'demo_admin'}' on asset 'login-portal' from IP ${alert.source_ip || '127.0.0.1'}`;
     navigate('/investigate', { state: { prefillPrompt: prompt } });
   };
 
@@ -104,9 +104,9 @@ export const Alerts = () => {
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs font-mono text-slate-500">
                 <div className="flex items-center space-x-4">
-                  <div>Asset: <strong className="text-slate-800">hexnova.space</strong></div>
+                  <div>Asset: <strong className="text-slate-800">Login Portal</strong></div>
                   <div>Target User: <strong className="text-slate-800">{alert.target_user || 'demo_admin'}</strong></div>
-                  <div>Source IP: <strong className="text-slate-800">{alert.source_ip || '192.168.56.101'}</strong></div>
+                  <div>Source IP: <strong className="text-slate-800">{alert.source_ip || '127.0.0.1'}</strong></div>
                 </div>
 
                 <button

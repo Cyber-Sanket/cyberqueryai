@@ -13,7 +13,8 @@ import {
   Filter,
   X,
   Eye,
-  Server
+  Server,
+  Lock
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GlassCard } from '../components/GlassCard';
@@ -32,7 +33,7 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
   const [assets, setAssets] = useState([]);
-  const [selectedAsset, setSelectedAsset] = useState('all'); // 'all' or 'hexnova.space'
+  const [selectedAsset, setSelectedAsset] = useState('all'); // 'all' or 'login-portal'
   const [loading, setLoading] = useState(true);
   
   // Monitored Asset Activity Drawer / Modal State
@@ -69,8 +70,8 @@ export const Dashboard = () => {
   const handleOpenAssetActivity = async (asset) => {
     setActiveAssetModal(asset);
     try {
-      const details = await api.getAssetById(asset.id);
-      const events = await api.getAssetEvents(asset.id, 10);
+      const details = await api.getAssetById(asset.id || asset.asset_id || 'login-portal');
+      const events = await api.getAssetEvents(asset.id || asset.asset_id || 'login-portal', 10);
       setAssetActivityData(details);
       setAssetEventsList(events);
     } catch (err) {
@@ -79,7 +80,7 @@ export const Dashboard = () => {
   };
 
   const handleInvestigateAlert = (alert) => {
-    const prompt = `Investigate suspicious ${alert.title} for user '${alert.target_user || 'demo_admin'}' from IP ${alert.source_ip || '192.168.56.101'}`;
+    const prompt = `Investigate suspicious ${alert.title} for user '${alert.target_user || 'demo_admin'}' on asset 'login-portal' from IP ${alert.source_ip || '127.0.0.1'}`;
     navigate('/investigate', { state: { prefillPrompt: prompt } });
   };
 
@@ -92,21 +93,22 @@ export const Dashboard = () => {
     );
   }
 
-  const hexnovaAsset = assets.find(a => a.domain === 'hexnova.space') || {
-    id: 'asset-1',
-    name: 'HexNova',
-    domain: 'hexnova.space',
+  const loginPortalAsset = assets.find(a => a.id === 'login-portal' || a.asset_id === 'login-portal') || {
+    id: 'login-portal',
+    asset_id: 'login-portal',
+    name: 'Login Portal',
+    domain: 'login-portal',
     type: 'web_application',
     status: 'monitoring',
-    total_events: summary?.total_events || 12842,
-    total_alerts: summary?.total_alerts || 7,
-    risk_level: 'Medium'
+    total_events: summary?.total_events || 0,
+    total_alerts: summary?.total_alerts || 0,
+    risk_level: summary?.high_risk_alerts > 0 ? 'High' : 'Low'
   };
 
   const statCards = [
     {
       title: 'Total Telemetry Events',
-      value: (summary?.total_events || 12842).toLocaleString(),
+      value: (summary?.total_events || 0).toLocaleString(),
       change: 'Calculated from DB',
       icon: Activity,
       color: 'text-indigo-600',
@@ -114,7 +116,7 @@ export const Dashboard = () => {
     },
     {
       title: 'Active Security Alerts',
-      value: summary?.total_alerts || 7,
+      value: summary?.total_alerts || 0,
       change: 'Mapped to MITRE ATT&CK',
       icon: AlertOctagon,
       color: 'text-amber-600',
@@ -122,7 +124,7 @@ export const Dashboard = () => {
     },
     {
       title: 'High Risk Incidents',
-      value: summary?.high_risk_alerts || 2,
+      value: summary?.high_risk_alerts || 0,
       change: 'Requires Analyst Action',
       icon: ShieldAlert,
       color: 'text-rose-600',
@@ -131,7 +133,7 @@ export const Dashboard = () => {
     {
       title: 'Monitored Assets',
       value: summary?.total_assets || 1,
-      change: 'hexnova.space (🟢 Live)',
+      change: 'Login Portal (🟢 Live)',
       icon: Globe,
       color: 'text-emerald-600',
       bg: 'bg-emerald-50 border-emerald-100',
@@ -166,7 +168,7 @@ export const Dashboard = () => {
               className="bg-white border border-slate-300 text-slate-900 font-semibold text-xs rounded-xl px-3 py-1.5 outline-none cursor-pointer"
             >
               <option value="all">All Assets</option>
-              <option value="hexnova.space">HexNova (hexnova.space)</option>
+              <option value="login-portal">Login Portal (login-portal)</option>
             </select>
           </div>
 
@@ -213,16 +215,16 @@ export const Dashboard = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
-          {/* HexNova Monitored Asset Card */}
+          {/* Login Portal Monitored Asset Card */}
           <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 hover:border-indigo-300 transition-all">
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-2.5">
                 <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                  🌐
+                  🔐
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-slate-900">HexNova</div>
-                  <div className="text-xs font-mono text-slate-500">hexnova.space</div>
+                  <div className="font-bold text-sm text-slate-900">Login Portal</div>
+                  <div className="text-xs font-mono text-slate-500">login-portal</div>
                 </div>
               </div>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold flex items-center gap-1">
@@ -234,21 +236,21 @@ export const Dashboard = () => {
             <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-100 text-center font-mono">
               <div>
                 <div className="text-[10px] text-slate-400 uppercase font-sans font-semibold">Events</div>
-                <div className="text-sm font-bold text-slate-900">{hexnovaAsset.total_events?.toLocaleString()}</div>
+                <div className="text-sm font-bold text-slate-900">{loginPortalAsset.total_events?.toLocaleString()}</div>
               </div>
               <div>
                 <div className="text-[10px] text-slate-400 uppercase font-sans font-semibold">Alerts</div>
-                <div className="text-sm font-bold text-amber-600">{hexnovaAsset.total_alerts}</div>
+                <div className="text-sm font-bold text-amber-600">{loginPortalAsset.total_alerts}</div>
               </div>
               <div>
                 <div className="text-[10px] text-slate-400 uppercase font-sans font-semibold">Risk</div>
-                <div className="text-sm font-bold text-rose-600">{hexnovaAsset.risk_level}</div>
+                <div className="text-sm font-bold text-rose-600">{loginPortalAsset.risk_level}</div>
               </div>
             </div>
 
             <div className="pt-1 flex items-center justify-between">
               <button
-                onClick={() => handleOpenAssetActivity(hexnovaAsset)}
+                onClick={() => handleOpenAssetActivity(loginPortalAsset)}
                 className="w-full py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5" />
@@ -267,11 +269,11 @@ export const Dashboard = () => {
         <GlassCard className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Security Telemetry Volume ({selectedAsset === 'all' ? 'All Assets' : 'hexnova.space'})</h3>
+              <h3 className="text-base font-bold text-slate-900">Security Telemetry Volume ({selectedAsset === 'all' ? 'All Assets' : 'Login Portal'})</h3>
               <p className="text-xs text-slate-500">Distribution of ingested log event types</p>
             </div>
             <span className="text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 font-mono">
-              hexnova.space
+              login-portal
             </span>
           </div>
 
@@ -304,7 +306,7 @@ export const Dashboard = () => {
         {/* Active Alerts List with Investigate Button */}
         <GlassCard className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="text-base font-bold text-slate-900">Active Alerts ({selectedAsset === 'all' ? 'All' : 'hexnova.space'})</h3>
+            <h3 className="text-base font-bold text-slate-900">Active Alerts ({selectedAsset === 'all' ? 'All' : 'Login Portal'})</h3>
             <Link to="/alerts" className="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1">
               <span>View All</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -324,8 +326,8 @@ export const Dashboard = () => {
                 </div>
                 <div className="text-xs font-semibold text-slate-900">{alert.title}</div>
                 <div className="text-[11px] text-slate-500 font-mono space-y-0.5">
-                  <div>Asset: <span className="font-semibold text-slate-700">hexnova.space</span></div>
-                  <div>Source: <span className="text-slate-700">{alert.source_ip || '192.168.56.101'}</span></div>
+                  <div>Asset: <span className="font-semibold text-slate-700">Login Portal</span></div>
+                  <div>Source: <span className="text-slate-700">{alert.source_ip || '127.0.0.1'}</span></div>
                 </div>
 
                 <div className="pt-1">
@@ -344,19 +346,19 @@ export const Dashboard = () => {
 
       </div>
 
-      {/* HexNova Asset Activity Drawer / Modal */}
+      {/* Login Portal Asset Activity Modal */}
       {activeAssetModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-2xl w-full p-6 space-y-6 shadow-xl animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-base font-bold text-slate-900">{activeAssetModal.name} Security Activity</span>
+                  <span className="text-base font-bold text-slate-900">{activeAssetModal.name || 'Login Portal'} Security Activity</span>
                   <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
                     🟢 Monitoring
                   </span>
                 </div>
-                <div className="text-xs font-mono text-slate-500">{activeAssetModal.domain}</div>
+                <div className="text-xs font-mono text-slate-500">{activeAssetModal.domain || 'login-portal'}</div>
               </div>
               <button
                 onClick={() => setActiveAssetModal(null)}
@@ -371,32 +373,32 @@ export const Dashboard = () => {
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-[10px] font-semibold text-slate-500 uppercase">Total Events</div>
                 <div className="text-lg font-bold text-slate-900 font-mono">
-                  {(assetActivityData?.stats?.total_events || summary?.total_events || 12842).toLocaleString()}
+                  {(assetActivityData?.stats?.total_events || summary?.total_events || 0).toLocaleString()}
                 </div>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-[10px] font-semibold text-slate-500 uppercase">Auth Events</div>
                 <div className="text-lg font-bold text-indigo-600 font-mono">
-                  {(assetActivityData?.stats?.authentication_events || 3421).toLocaleString()}
+                  {(assetActivityData?.stats?.authentication_events || 0).toLocaleString()}
                 </div>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-[10px] font-semibold text-slate-500 uppercase">Suspicious Events</div>
                 <div className="text-lg font-bold text-rose-600 font-mono">
-                  {assetActivityData?.stats?.suspicious_events || 18}
+                  {assetActivityData?.stats?.suspicious_events || 0}
                 </div>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-[10px] font-semibold text-slate-500 uppercase">Active Alerts</div>
                 <div className="text-lg font-bold text-amber-600 font-mono">
-                  {assetActivityData?.stats?.active_alerts || summary?.total_alerts || 7}
+                  {assetActivityData?.stats?.active_alerts || summary?.total_alerts || 0}
                 </div>
               </div>
             </div>
 
             {/* Recent Activity Stream */}
             <div className="space-y-2">
-              <div className="text-xs font-bold text-slate-900 uppercase tracking-wider">Recent HexNova Activity Log</div>
+              <div className="text-xs font-bold text-slate-900 uppercase tracking-wider">Recent Login Portal Activity Log</div>
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50/50">
                 <table className="w-full text-left text-xs font-mono">
                   <thead className="bg-slate-100 text-slate-600 border-b border-slate-200 uppercase text-[10px]">

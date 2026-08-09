@@ -8,16 +8,16 @@ from app.database.models import SecurityEventModel, AlertModel, MonitoredAssetMo
 
 router = APIRouter(prefix="/api/assets", tags=["Monitored Assets"])
 
-def get_or_seed_hexnova_asset(db: Session) -> MonitoredAssetModel:
-    asset = db.query(MonitoredAssetModel).filter(MonitoredAssetModel.domain == "hexnova.space").first()
+def get_or_seed_login_portal_asset(db: Session) -> MonitoredAssetModel:
+    asset = db.query(MonitoredAssetModel).filter(MonitoredAssetModel.id == "login-portal").first()
     if not asset:
         asset = MonitoredAssetModel(
-            id="asset-1",
-            name="HexNova",
-            domain="hexnova.space",
+            id="login-portal",
+            name="Login Portal",
+            domain="login-portal",
             type="web_application",
             status="monitoring",
-            environment="Authorized / Controlled Environment",
+            environment="Authentication Application Monitored by CyberQuery AI",
             created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ")
         )
         db.add(asset)
@@ -29,9 +29,9 @@ def get_or_seed_hexnova_asset(db: Session) -> MonitoredAssetModel:
 def get_monitored_assets(db: Session = Depends(get_db)):
     """
     GET /api/assets
-    Returns live list of monitored assets from monitored_assets table with calculated DB metrics.
+    Returns list of monitored assets (Login Portal) directly from SQLite DB.
     """
-    get_or_seed_hexnova_asset(db)
+    get_or_seed_login_portal_asset(db)
     db_assets = db.query(MonitoredAssetModel).all()
 
     total_events = db.query(SecurityEventModel).count()
@@ -43,6 +43,7 @@ def get_monitored_assets(db: Session = Depends(get_db)):
     assets = []
     for a in db_assets:
         assets.append({
+            "asset_id": a.id,
             "id": a.id,
             "name": a.name,
             "domain": a.domain,
@@ -61,11 +62,11 @@ def get_monitored_assets(db: Session = Depends(get_db)):
 def get_asset_by_id(asset_id: str, db: Session = Depends(get_db)):
     """
     GET /api/assets/{asset_id}
-    Returns detailed security activity & stats for a specific asset from SQLite DB.
+    Returns detailed security activity & stats for Login Portal from SQLite DB.
     """
     asset = db.query(MonitoredAssetModel).filter(MonitoredAssetModel.id == asset_id).first()
     if not asset:
-        asset = get_or_seed_hexnova_asset(db)
+        asset = get_or_seed_login_portal_asset(db)
 
     total_events = db.query(SecurityEventModel).count()
     auth_events = db.query(SecurityEventModel).filter(SecurityEventModel.event_type == "authentication").count()
@@ -73,6 +74,7 @@ def get_asset_by_id(asset_id: str, db: Session = Depends(get_db)):
     total_alerts = db.query(AlertModel).count()
 
     return {
+        "asset_id": asset.id,
         "id": asset.id,
         "name": asset.name,
         "domain": asset.domain,
@@ -91,13 +93,13 @@ def get_asset_by_id(asset_id: str, db: Session = Depends(get_db)):
 def get_asset_events(asset_id: str, limit: int = 15, db: Session = Depends(get_db)):
     """
     GET /api/assets/{asset_id}/events
-    Returns recent security events for the specified asset from SQLite DB.
+    Returns recent security events for Login Portal from SQLite DB.
     """
     events = db.query(SecurityEventModel).order_by(SecurityEventModel.id.desc()).limit(limit).all()
     return [
         {
             "id": str(e.id),
-            "asset": e.source or "hexnova.space",
+            "asset": e.source or "login-portal",
             "timestamp": e.timestamp,
             "event_type": e.event_type,
             "action": e.action,
@@ -105,7 +107,7 @@ def get_asset_events(asset_id: str, limit: int = 15, db: Session = Depends(get_d
             "username": e.username,
             "source_ip": e.source_ip,
             "destination_ip": e.destination_ip,
-            "hostname": e.hostname
+            "hostname": e.hostname or "login-portal"
         }
         for e in events
     ]
@@ -114,7 +116,7 @@ def get_asset_events(asset_id: str, limit: int = 15, db: Session = Depends(get_d
 def get_asset_alerts(asset_id: str, db: Session = Depends(get_db)):
     """
     GET /api/assets/{asset_id}/alerts
-    Returns active alerts associated with the specified asset from SQLite DB.
+    Returns active alerts associated with Login Portal from SQLite DB.
     """
     alerts = db.query(AlertModel).order_by(AlertModel.created_at.desc()).all()
     return [
@@ -123,9 +125,9 @@ def get_asset_alerts(asset_id: str, db: Session = Depends(get_db)):
             "title": a.title,
             "severity": a.severity,
             "mitre_technique": a.mitre_technique,
-            "asset": "hexnova.space",
+            "asset": "Login Portal",
             "target_user": a.target_user or "demo_admin",
-            "source_ip": a.source_ip or "192.168.56.101",
+            "source_ip": a.source_ip or "127.0.0.1",
             "status": a.status,
             "created_at": a.created_at,
             "description": a.description

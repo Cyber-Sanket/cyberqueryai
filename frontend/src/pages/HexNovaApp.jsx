@@ -11,14 +11,15 @@ import {
   ArrowRight, 
   Sparkles,
   Activity,
-  Server
+  Server,
+  ExternalLink
 } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
 import { api } from '../services/api';
 
 export const HexNovaApp = () => {
   const [username, setUsername] = useState('demo_admin');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('Demo@123');
   const [statusMsg, setStatusMsg] = useState(null);
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState([]);
@@ -42,20 +43,20 @@ export const HexNovaApp = () => {
     try {
       const payload = {
         timestamp: new Date().toISOString(),
-        source: 'hexnova',
+        asset: 'login-portal',
         event_type: 'authentication',
         action: 'login',
         status: successStatus,
         username: username,
-        source_ip: '192.168.56.101',
+        source_ip: '127.0.0.1',
         destination_ip: '10.0.0.5',
-        hostname: 'hexnova-app'
+        hostname: 'login-portal'
       };
 
       const res = await api.ingestSecurityEvent(payload);
       setStatusMsg({
         type: successStatus === 'failed' ? 'error' : 'success',
-        text: `HexNova authentication ${successStatus.toUpperCase()} for '${username}' (IP: 192.168.56.101). Security Event ${res.event_id} streamed to CyberQuery API!`
+        text: `Login Portal authentication ${successStatus.toUpperCase()} for '${username}'. Security Event ${res.event_id} streamed to CyberQuery API!`
       });
       fetchLatestEvents();
     } catch (err) {
@@ -72,7 +73,7 @@ export const HexNovaApp = () => {
       const res = await api.triggerDemoAttack();
       setStatusMsg({
         type: 'attack',
-        text: `⚡ Controlled Attack Executed! Ingested 5 Failed + 1 Successful login events for 'demo_admin' (IP 192.168.56.101). High Risk Incident Alert Created!`
+        text: `⚡ Controlled Attack Executed! Ingested 6 Failed + 1 Successful login events for 'demo_admin' on Login Portal. High Risk Brute Force Incident Alert Created!`
       });
       fetchLatestEvents();
     } catch (err) {
@@ -90,26 +91,38 @@ export const HexNovaApp = () => {
         <div>
           <div className="flex items-center space-x-2">
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-              Target Application
+              Monitored Target Application
             </span>
-            <span className="text-xs font-mono text-slate-400">hexnova.space</span>
+            <span className="text-xs font-mono text-slate-400">login-portal</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight mt-1 flex items-center gap-2">
-            <Globe className="w-5 h-5 text-indigo-600" />
-            <span>HexNova Security & Threat Research Application</span>
+            <Lock className="w-5 h-5 text-indigo-600" />
+            <span>Login Portal Monitored Application</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            This is the production application monitored by CyberQuery AI. Authentication and application events are streamed live to <code>POST /api/security-events</code>.
+            This is the standalone Authentication Portal monitored by CyberQuery AI. Telemetry is ingested live via <code>POST /api/security-events</code>.
           </p>
         </div>
 
-        <Link
-          to="/"
-          className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center space-x-2 shrink-0"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>Open SOC Dashboard & AI Investigation</span>
-        </Link>
+        <div className="flex items-center space-x-3">
+          <a
+            href="http://localhost:5173"
+            target="_blank"
+            rel="noreferrer"
+            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-xs transition-all flex items-center space-x-2 shrink-0"
+          >
+            <span>Open Standalone Portal</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+
+          <Link
+            to="/"
+            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center space-x-2 shrink-0"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>SOC Dashboard</span>
+          </Link>
+        </div>
       </div>
 
       {/* Response Message Banner */}
@@ -134,7 +147,7 @@ export const HexNovaApp = () => {
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center space-x-2">
               <Lock className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold text-slate-900">HexNova Target Application Login</h3>
+              <h3 className="text-sm font-bold text-slate-900">Login Portal Application Simulator</h3>
             </div>
             <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
               🟢 Live Monitored
@@ -186,7 +199,7 @@ export const HexNovaApp = () => {
           <div className="flex items-center justify-between border-b border-rose-100 pb-3">
             <div className="flex items-center space-x-2">
               <ShieldAlert className="w-4 h-4 text-rose-600" />
-              <h3 className="text-sm font-bold text-slate-900">Controlled Security Testing (Kali Linux Simulator)</h3>
+              <h3 className="text-sm font-bold text-slate-900">Controlled Security Testing Sequence</h3>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
               Hackathon Demo
@@ -194,14 +207,14 @@ export const HexNovaApp = () => {
           </div>
 
           <p className="text-xs text-slate-600 leading-relaxed">
-            Simulate a controlled security testing sequence against <code>hexnova.space</code> from authorized IP <code>192.168.56.101</code>.
+            Simulate a controlled security testing sequence against <code>login-portal</code>.
           </p>
 
           <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1 font-mono text-[11px] text-slate-700">
-            <div>1. Fire 5 Failed Authentication Attempts (demo_admin)</div>
+            <div>1. Fire 6 Failed Authentication Attempts (demo_admin)</div>
             <div>2. Fire 1 Successful Authentication Attempt (demo_admin)</div>
             <div>3. Ingest events into CyberQuery Database</div>
-            <div>4. Trigger Incident Alert & SOC Notification</div>
+            <div>4. Trigger Brute Force Alert (T1110) & Incident</div>
           </div>
 
           <button
@@ -210,7 +223,7 @@ export const HexNovaApp = () => {
             className="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer"
           >
             <Zap className="w-4 h-4 fill-current" />
-            <span>⚡ Run Controlled Brute-Force Test against hexnova.space</span>
+            <span>⚡ Run Controlled Brute-Force Test against Login Portal</span>
           </button>
         </GlassCard>
 
@@ -221,7 +234,7 @@ export const HexNovaApp = () => {
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center space-x-2">
             <Activity className="w-4 h-4 text-indigo-600" />
-            <h3 className="text-sm font-bold text-slate-900">Live Ingested Security Telemetry Stream (hexnova.space)</h3>
+            <h3 className="text-sm font-bold text-slate-900">Live Ingested Security Telemetry Stream (login-portal)</h3>
           </div>
           <span className="text-xs text-slate-500 font-mono">Streamed to POST /api/security-events</span>
         </div>

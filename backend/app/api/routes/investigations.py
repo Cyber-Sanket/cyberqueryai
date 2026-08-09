@@ -51,7 +51,7 @@ def health_check(db: Session = Depends(get_db)):
             "database": "connected",
             "service": "CyberQuery API",
             "total_events_stored": event_count,
-            "monitored_asset": "hexnova.space"
+            "monitored_asset": "Login Portal"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connectivity failed: {str(e)}")
@@ -68,7 +68,6 @@ def get_real_stats(db: Session = Depends(get_db)):
     critical = db.query(AlertModel).filter(AlertModel.severity == "CRITICAL").count()
     active_incidents = db.query(IncidentModel).count()
 
-    # Top suspicious IPs calculated from DB
     raw_ip_stats = db.query(
         SecurityEventModel.source_ip,
         func.count(SecurityEventModel.id).label("total_events")
@@ -87,7 +86,6 @@ def get_real_stats(db: Session = Depends(get_db)):
             "event_count": r.total_events
         })
 
-    # Top targeted users calculated from DB
     raw_user_stats = db.query(
         SecurityEventModel.username,
         func.count(SecurityEventModel.id).label("total_events")
@@ -101,7 +99,7 @@ def get_real_stats(db: Session = Depends(get_db)):
         ).count()
         targeted_users.append({
             "username": u.username,
-            "primary_host": "hexnova-app",
+            "primary_host": "login-portal",
             "failed_logins": failed_count,
             "event_count": u.total_events
         })
@@ -112,6 +110,7 @@ def get_real_stats(db: Session = Depends(get_db)):
         "high_risk_alerts": high_risk,
         "critical_alerts": critical,
         "active_incidents": active_incidents,
+        "monitored_assets_count": 1,
         "suspicious_ips": suspicious_ips,
         "targeted_users": targeted_users
     }
@@ -147,7 +146,7 @@ async def run_investigation(
     """
     start_time = time.time()
     investigation_id = f"inv-{uuid.uuid4().hex[:8]}"
-    query_text = req.prompt or req.question or "Find suspicious login activity"
+    query_text = req.prompt or req.question or "Find suspicious login activity on Login Portal"
 
     gov = get_or_create_policy(db)
     governance_policy = {
@@ -168,7 +167,7 @@ async def run_investigation(
         exec_time = int((time.time() - start_time) * 1000)
         reason = gate1_res["reason"]
         suggestions = gate1_res.get("suggestions", [
-            "Find repeated failed login attempts",
+            "Find repeated failed login attempts on Login Portal",
             "Find suspicious PowerShell executions",
             "Find possible port scanning",
             "Find unusual DNS activity",
@@ -270,17 +269,14 @@ async def run_investigation(
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ")
         }
 
-    # Execute Safe Query on SQLite Database Telemetry
     raw_results = execute_query_on_siem(generated_sql, db)
     exec_time = int((time.time() - start_time) * 1000)
 
-    # Perform Evidence-Based Threat Analysis
     threat_analysis = analyze_threat(intent, raw_results)
 
     mitre_tech = threat_analysis.get("mitre_technique")
     mitre_info = mitre_mapper.get_technique_info(mitre_tech) if mitre_tech else {}
 
-    # Requirement 11: Clear Empty-State Response
     explanation_text = threat_analysis.get("explanation")
     if len(raw_results) == 0:
         explanation_text = "No matching security events found for the selected time range."
@@ -352,8 +348,8 @@ async def run_investigation(
 @router.get("/dashboard/summary")
 def get_dashboard_summary(asset: Optional[str] = Query(None), db: Session = Depends(get_db)):
     """
-    GET /api/dashboard/summary?asset=hexnova.space
-    Calculates security overview counters dynamically from database.
+    GET /api/dashboard/summary?asset=login-portal
+    Calculates security overview counters dynamically from database for Login Portal.
     """
     total_events = db.query(SecurityEventModel).count()
     total_alerts = db.query(AlertModel).count()
@@ -364,12 +360,13 @@ def get_dashboard_summary(asset: Optional[str] = Query(None), db: Session = Depe
 
     monitored_assets = [
         {
-            "id": "asset-1",
-            "name": "HexNova",
-            "domain": "hexnova.space",
+            "asset_id": "login-portal",
+            "id": "login-portal",
+            "name": "Login Portal",
+            "domain": "login-portal",
             "type": "web_application",
             "status": "monitoring",
-            "environment": "Authorized / Controlled Environment",
+            "environment": "Authentication Application Monitored by CyberQuery AI",
             "events_count": total_events,
             "alerts_count": total_alerts,
             "risk_level": "High" if high_risk > 2 else ("Medium" if total_alerts > 0 else "Low")
@@ -389,9 +386,9 @@ def get_dashboard_summary(asset: Optional[str] = Query(None), db: Session = Depe
                 "id": a.id,
                 "title": a.title,
                 "severity": a.severity,
-                "asset": "hexnova.space",
+                "asset": "Login Portal",
                 "target_user": a.target_user or "demo_admin",
-                "source_ip": a.source_ip or "192.168.56.101",
+                "source_ip": a.source_ip or "127.0.0.1",
                 "status": a.status,
                 "created_at": a.created_at
             }
@@ -422,10 +419,10 @@ def get_mitre_details(technique: str):
 def get_datasources():
     return [
         {
-            "id": "hexnova-space-siem",
-            "name": "HexNova Application Telemetry Stream",
+            "id": "login-portal-siem",
+            "name": "Login Portal Security Telemetry Stream",
             "type": "REST API Ingestion (POST /api/security-events)",
-            "target_app": "hexnova.space",
+            "target_app": "login-portal",
             "status": "CONNECTED",
             "read_only": True,
             "last_sync": time.strftime("%Y-%m-%dT%H:%M:%SZ")

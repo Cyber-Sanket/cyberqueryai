@@ -170,52 +170,64 @@ def evaluate_event_rules(event: SecurityEventModel, db: Session) -> Optional[Ale
         return None
 
     # RULE A: Brute Force (T1110)
-    if event.event_type == "authentication" and event.status == "failed" and event.source_ip:
-        failed_count = db.query(SecurityEventModel).filter(
+    if event.event_type == "authentication" and event.status == "failed":
+        query = db.query(SecurityEventModel).filter(
             SecurityEventModel.event_type == "authentication",
-            SecurityEventModel.status == "failed",
-            SecurityEventModel.source_ip == event.source_ip
-        ).count()
+            SecurityEventModel.status == "failed"
+        )
+        if event.source_ip and event.source_ip not in ["client", "unknown"]:
+            query = query.filter(
+                (SecurityEventModel.source_ip == event.source_ip) | 
+                (SecurityEventModel.username == event.username)
+            )
+        else:
+            query = query.filter(SecurityEventModel.username == event.username)
+
+        failed_count = query.count()
 
         if failed_count >= 5:
             existing_alert = db.query(AlertModel).filter(
-                AlertModel.source_ip == event.source_ip,
+                (AlertModel.source_ip == event.source_ip) | (AlertModel.target_user == event.username),
                 AlertModel.mitre_technique == "T1110",
                 AlertModel.status == "Open"
             ).first()
 
-            if not existing_alert:
-                alert_id = f"alt-{uuid.uuid4().hex[:8]}"
-                now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ")
-                alert = AlertModel(
-                    id=alert_id,
-                    created_at=now_str,
-                    title=f"Possible Brute Force Attack ({failed_count} Failed Attempts)",
-                    severity="HIGH",
-                    source_ip=event.source_ip,
-                    mitre_technique="T1110",
-                    description=f"Multiple failed login attempts ({failed_count}) detected from IP {event.source_ip} targeting user '{event.username or 'demo_admin'}' on asset {event.source}.",
-                    status="Open",
-                    target_user=event.username or "demo_admin",
-                    evidence={"failed_count": failed_count, "source_ip": event.source_ip, "asset": event.source}
-                )
-                db.add(alert)
-
-                incident_id = f"inc-{uuid.uuid4().hex[:8]}"
-                incident = IncidentModel(
-                    id=incident_id,
-                    created_at=now_str,
-                    title=f"Brute-Force Attack Campaign on {event.source}",
-                    severity="HIGH",
-                    status="Active",
-                    source_ip=event.source_ip,
-                    event_count=failed_count,
-                    mitre_technique="T1110",
-                    summary=f"Automated credential brute-force attack originating from {event.source_ip} targeting account {event.username or 'demo_admin'}."
-                )
-                db.add(incident)
+            if existing_alert:
+                existing_alert.description = f"Multiple failed login attempts ({failed_count}) detected targeting user '{event.username or 'demo_admin'}' on asset {event.source}."
                 db.commit()
-                return alert
+                return existing_alert
+
+            alert_id = f"alt-{uuid.uuid4().hex[:8]}"
+            now_str = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+            alert = AlertModel(
+                id=alert_id,
+                created_at=now_str,
+                title=f"Possible Brute Force Attack ({failed_count} Failed Attempts)",
+                severity="HIGH",
+                source_ip=event.source_ip or "127.0.0.1",
+                mitre_technique="T1110",
+                description=f"Multiple failed login attempts ({failed_count}) detected targeting user '{event.username or 'demo_admin'}' on asset {event.source}.",
+                status="Open",
+                target_user=event.username or "demo_admin",
+                evidence={"failed_count": failed_count, "source_ip": event.source_ip, "asset": event.source}
+            )
+            db.add(alert)
+
+            incident_id = f"inc-{uuid.uuid4().hex[:8]}"
+            incident = IncidentModel(
+                id=incident_id,
+                created_at=now_str,
+                title=f"Brute-Force Attack Campaign on {event.source}",
+                severity="HIGH",
+                status="Active",
+                source_ip=event.source_ip or "127.0.0.1",
+                event_count=failed_count,
+                mitre_technique="T1110",
+                summary=f"Automated credential brute-force attack originating from {event.source_ip} targeting account {event.username or 'demo_admin'}."
+            )
+            db.add(incident)
+            db.commit()
+            return alert
 
     # RULE B: Suspicious PowerShell (T1059.001)
     raw_str = str(event.raw_data or "").lower() + str(event.action or "").lower() + str(event.endpoint or "").lower() + str(event.command_line or "").lower()

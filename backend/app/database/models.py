@@ -7,7 +7,7 @@ class SecurityEventModel(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     timestamp = Column(String, index=True)
-    source = Column(String, index=True, default="hexnova.space")
+    source = Column(String, index=True, default="login-portal")
     event_type = Column(String, index=True) # authentication, process_execution, network_connection, dns_query, http_request
     action = Column(String) # login, connect, query, execute
     status = Column(String, index=True) # success, failed
